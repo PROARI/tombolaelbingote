@@ -29,6 +29,10 @@
     --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
     --shadow-lg: 0 10px 25px rgba(0,0,0,0.6);
     --shadow-glow: 0 0 15px rgba(250, 204, 21, 0.35);
+
+    /* Dynamic Sizing */
+    --drum-size: min(230px, 30vh);
+    --ball-size: min(150px, 20vh);
 }
 
 /* Ball-specific theme colors */
@@ -55,7 +59,7 @@ body {
     color: var(--primary);
     font-family: var(--font-primary);
     min-height: 100vh;
-    padding: 20px;
+    padding: min(20px, 2.5vh);
     overflow-x: hidden;
 }
 
@@ -76,7 +80,7 @@ body {
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: min(20px, 2vh);
 }
 
 /* Header Styles */
@@ -84,7 +88,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 30px;
+    padding: min(12px, 1.5vh) min(30px, 3vw);
     background: rgba(10, 34, 64, 0.5);
     backdrop-filter: blur(8px);
     border-radius: 16px;
@@ -98,14 +102,14 @@ body {
 }
 
 .app-logo {
-    height: 70px;
+    height: min(50px, 7vh);
     object-fit: contain;
     filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
 }
 
 .logo-fallback {
     font-family: var(--font-display);
-    font-size: 2.2rem;
+    font-size: min(1.8rem, 4vh);
     font-weight: 800;
     background: linear-gradient(135deg, var(--primary) 0%, var(--brand-yellow) 50%, var(--brand-orange) 100%);
     -webkit-background-clip: text;
@@ -162,13 +166,33 @@ body {
 /* Main Grid Layout */
 .main-grid {
     display: grid;
-    grid-template-columns: 340px 360px 1fr;
-    gap: 20px;
+    grid-template-columns: 320px 320px 1fr;
+    gap: 15px;
 }
 
-@media (max-width: 1200px) {
+@media (min-width: 1024px) {
+    .main-grid {
+        height: calc(100vh - 270px);
+        min-height: 420px;
+    }
+    .visual-panel, .display-panel, .board-panel {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    }
+}
+
+@media (max-width: 1200px) and (min-width: 1024px) {
+    .main-grid {
+        grid-template-columns: 300px 300px 1fr;
+    }
+}
+
+@media (max-width: 1023px) {
     .main-grid {
         grid-template-columns: 1fr 1fr;
+        height: auto;
     }
     .board-panel {
         grid-column: span 2;
@@ -203,17 +227,17 @@ body {
 .drum-outer-wrapper {
     position: relative;
     width: 100%;
-    height: 320px;
+    height: calc(var(--drum-size) + 70px);
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 10px 0;
+    margin: 5px 0;
 }
 
 .drum-sphere-container {
     position: relative;
-    width: 250px;
-    height: 250px;
+    width: var(--drum-size);
+    height: var(--drum-size);
     border-radius: 50%;
     background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.02) 60%, rgba(0, 0, 0, 0.5) 100%);
     box-shadow: 
@@ -242,24 +266,30 @@ body {
 
 .drum-stand-left, .drum-stand-right {
     position: absolute;
-    bottom: 25px;
-    width: 14px;
-    height: 160px;
+    bottom: calc(35px - var(--drum-size) * 0.05);
+    width: 12px;
+    height: calc(var(--drum-size) * 0.64);
     background: linear-gradient(90deg, #64748b 0%, #475569 50%, #334155 100%);
     border-radius: 4px;
     box-shadow: var(--shadow-sm);
 }
 
-.drum-stand-left { left: 25px; transform: rotate(-15deg); }
-.drum-stand-right { right: 25px; transform: rotate(15deg); }
+.drum-stand-left { 
+    left: calc(50% - var(--drum-size) / 2 + 10px); 
+    transform: rotate(-15deg); 
+}
+.drum-stand-right { 
+    right: calc(50% - var(--drum-size) / 2 + 10px); 
+    transform: rotate(15deg); 
+}
 
 .drum-chute {
     position: absolute;
-    bottom: 0px;
+    bottom: 5px;
     left: 50%;
     transform: translateX(-50%);
-    width: 60px;
-    height: 60px;
+    width: calc(var(--drum-size) * 0.24);
+    height: calc(var(--drum-size) * 0.24);
     background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.15) 100%);
     border: 2px solid rgba(255, 255, 255, 0.2);
     border-top: none;
@@ -269,11 +299,11 @@ body {
 
 .chute-exit {
     position: absolute;
-    bottom: 5px;
+    bottom: 3px;
     left: 50%;
     transform: translateX(-50%);
-    width: 46px;
-    height: 46px;
+    width: calc(var(--drum-size) * 0.18);
+    height: calc(var(--drum-size) * 0.18);
     background: rgba(0, 0, 0, 0.8);
     border-radius: 50%;
     box-shadow: inset 0 2px 8px rgba(0,0,0,0.9);
@@ -283,21 +313,21 @@ body {
 .action-controls {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    padding: 20px;
+    gap: min(10px, 1.2vh);
+    padding: 10px 15px;
 }
 
 .btn-action {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
     border: none;
     border-radius: 12px;
     font-family: var(--font-primary);
     font-weight: 700;
-    font-size: 1rem;
-    padding: 14px 24px;
+    font-size: min(0.9rem, 2vh);
+    padding: min(11px, 1.6vh) 20px;
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: var(--shadow-md);
@@ -378,9 +408,9 @@ body {
 .auto-play-container {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
     background: rgba(0, 0, 0, 0.25);
-    padding: 15px;
+    padding: 10px 12px;
     border-radius: 12px;
     border: 1px solid var(--border-color);
 }
@@ -408,28 +438,29 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 30px;
-    min-height: 260px;
+    padding: min(20px, 2.5vh);
+    flex: 1;
+    min-height: 0;
 }
 
 .big-ball-container-empty {
-    width: 170px;
-    height: 170px;
+    width: var(--ball-size);
+    height: var(--ball-size);
     border-radius: 50%;
     border: 4px dashed rgba(255, 255, 255, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
     color: rgba(255, 255, 255, 0.2);
-    font-size: 3rem;
+    font-size: calc(var(--ball-size) * 0.28);
     font-family: var(--font-display);
     font-weight: 800;
     background: rgba(0,0,0,0.2);
 }
 
 .big-ball-container-active {
-    width: 170px;
-    height: 170px;
+    width: var(--ball-size);
+    height: var(--ball-size);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -451,7 +482,7 @@ body {
 
 .big-ball-value {
     font-family: var(--font-display);
-    font-size: 4.8rem;
+    font-size: calc(var(--ball-size) * 0.44);
     font-weight: 800;
     text-shadow: 0 4px 8px rgba(0,0,0,0.5);
     z-index: 2;
@@ -459,8 +490,8 @@ body {
 }
 
 .big-ball-subtext {
-    margin-top: 15px;
-    font-size: 0.85rem;
+    margin-top: min(10px, 1.2vh);
+    font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.05em;
     color: var(--secondary);
@@ -481,41 +512,41 @@ body {
 
 /* History List */
 .history-container {
-    padding: 0 20px 20px;
+    padding: 0 15px min(15px, 2vh);
 }
 
 .history-container h3 {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.05em;
     color: var(--secondary);
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     text-transform: uppercase;
 }
 
 .history-balls-list {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     justify-content: flex-start;
     align-items: center;
-    min-height: 52px;
+    min-height: 44px;
 }
 
 .history-empty-msg {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: rgba(255,255,255,0.25);
     font-style: italic;
 }
 
 .history-ball {
-    width: 48px;
-    height: 48px;
+    width: min(40px, 5.5vh);
+    height: min(40px, 5.5vh);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: var(--font-display);
-    font-size: 1.1rem;
+    font-size: calc(min(40px, 5.5vh) * 0.42);
     font-weight: 800;
     position: relative;
     animation: historyPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2) forwards;
@@ -557,10 +588,28 @@ body {
 }
 
 .board-grid-scroll {
-    padding: 20px;
+    padding: 10px min(20px, 2.5vw);
     flex-grow: 1;
     overflow-y: auto;
-    max-height: 480px;
+    overflow-x: auto;
+    min-height: 0;
+}
+
+/* Custom Scrollbar for premium feel */
+.board-grid-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.board-grid-scroll::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+}
+.board-grid-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+.board-grid-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .board-grid {
@@ -636,7 +685,7 @@ body {
 
 /* Footer / Settings Section */
 .app-footer {
-    padding: 20px;
+    padding: min(15px, 1.8vh) 20px;
 }
 
 .footer-layout {
@@ -654,7 +703,7 @@ body {
 .settings-block, .reset-block, .card-generator-block {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: min(12px, 1.5vh);
     border-right: 1px solid var(--border-color);
     padding-right: 20px;
 }
@@ -673,7 +722,7 @@ body {
         border-right: none;
         border-bottom: 1px solid var(--border-color);
         padding-right: 0;
-        padding-bottom: 20px;
+        padding-bottom: 15px;
     }
     .card-generator-block {
         border-bottom: none;
@@ -1093,5 +1142,53 @@ input:checked + .switch-slider:before {
         border: 1px solid #cbd5e1 !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
+    }
+}
+
+/* Mobile & Extra Responsive Layout Rules */
+@media (max-width: 600px) {
+    .app-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+        text-align: center;
+        padding: 10px 15px;
+    }
+    .header-controls {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+@media (max-width: 500px) {
+    .grid-75 {
+        min-width: 460px;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 10px;
+    }
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+    .col-span-2 {
+        grid-column: span 1;
+    }
+    .board-grid {
+        gap: 4px;
+    }
+    .board-cell {
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+    .board-column-header-row {
+        gap: 4px;
+    }
+    .board-col-hdr {
+        font-size: 0.9rem;
+        border-radius: 4px;
+        padding: 4px 0;
     }
 }
