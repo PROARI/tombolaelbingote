@@ -1,0 +1,1323 @@
+// Game State Object
+let gameState = {
+    gameMode: 90, // 90 or 75
+    drawnBalls: [],
+    ballsPool: [],
+    isPlaying: false,
+    autoSpeed: 4, // in seconds
+    sfxEnabled: true,
+    ttsEnabled: true,
+    volume: 0.7,
+    selectedVoiceName: ''
+};
+
+// Web Audio API Synthesizer Context
+let audioCtx = null;
+let drumOscNode = null;
+let drumGainNode = null;
+let drumModNode = null;
+let drumModGainNode = null;
+
+// Canvas Simulation Variables
+let canvas = null;
+let ctx = null;
+let simBalls = [];
+let animationFrameId = null;
+let isSpinning = false;
+let drawnBallTarget = null;
+let exitAnimationTimer = 0;
+
+// Speech Synthesis
+let voices = [];
+let currentUtterance = null;
+
+// Initialize the Application on Load
+window.addEventListener('DOMContentLoaded', () => {
+    initApp();
+});
+
+function initApp() {
+    canvas = document.getElementById('drum-canvas');
+    ctx = canvas.getContext('2d');
+
+    // Load voices for Speech Synthesis
+    setupSpeech();
+
+    // Load game state from local storage or set defaults
+    loadGameState();
+
+    // Set UI elements from state
+    document.getElementById('chk-sfx').checked = gameState.sfxEnabled;
+    document.getElementById('chk-tts').checked = gameState.ttsEnabled;
+    document.getElementById('volume-slider').value = gameState.volume;
+    document.getElementById('speed-slider').value = gameState.autoSpeed;
+    document.getElementById('speed-value').textContent = gameState.autoSpeed;
+
+    // Set up interface according to mode
+    updateGameModeUI();
+    renderBoard();
+    updateStats();
+    renderHistory();
+    renderBigBall();
+
+    // Initialize physics simulation
+    initSimulationBalls();
+    startSimulation();
+
+    // Add confirmation modal key listeners
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeConfirmModal();
+            closeAlertModal();
+        }
+    });
+}
+
+// ==========================================
+// STATE MANAGEMENT & LOCAL STORAGE
+// ==========================================
+
+function saveGameState() {
+    localStorage.setItem('el_bingote_state', JSON.stringify(gameState));
+}
+
+function loadGameState() {
+    const saved = localStorage.getItem('el_bingote_state');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            // Deep copy variables
+            gameState.gameMode = parsed.gameMode || 90;
+            gameState.drawnBalls = parsed.drawnBalls || [];
+            gameState.autoSpeed = parsed.autoSpeed || 4;
+            gameState.sfxEnabled = parsed.sfxEnabled !== undefined ? parsed.sfxEnabled : true;
+            gameState.ttsEnabled = parsed.ttsEnabled !== undefined ? parsed.ttsEnabled : true;
+            gameState.volume = parsed.volume !== undefined ? parsed.volume : 0.7;
+            gameState.selectedVoiceName = parsed.selectedVoiceName || '';
+            
+            // Re-generate pools
+            rebuildBallsPool();
+        } catch (e) {
+            console.error("Error reading saved game state, resetting", e);
+            resetGameState();
+        }
+    } else {
+        resetGameState();
+    }
+}
+
+function resetGameState() {
+    gameState.drawnBalls = [];
+    gameState.isPlaying = false;
+    rebuildBallsPool();
+    saveGameState();
+}
+
+function rebuildBallsPool() {
+    gameState.ballsPool = [];
+    const maxBalls = gameState.gameMode;
+    for (let i = 1; i <= maxBalls; i++) {
+        if (!gameState.drawnBalls.includes(i)) {
+            gameState.ballsPool.push(i);
+        }
+    }
+}
+
+function setGameMode(mode) {
+    if (gameState.drawnBalls.length > 0) {
+        showAlert("No se puede cambiar el modo de juego una vez iniciado. Reinicia el juego primero.");
+        return;
+    }
+    gameState.gameMode = mode;
+    resetGameState();
+    
+    updateGameModeUI();
+    renderBoard();
+    updateStats();
+    renderHistory();
+    renderBigBall();
+    
+    initSimulationBalls();
+    playClickSFX();
+}
+
+function updateGameModeUI() {
+    const btn90 = document.getElementById('btn-mode-90');
+    const btn75 = document.getElementById('btn-mode-75');
+    if (gameState.gameMode === 90) {
+        btn90.classList.add('active');
+        btn75.classList.remove('active');
+    } else {
+        btn75.classList.add('active');
+        btn90.classList.remove('active');
+    }
+}
+
+// ==========================================
+// WEB AUDIO SYNTHESIZER ENGINE
+// ==========================================
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function playClickSFX() {
+    if (!gameState.sfxEnabled) return;
+    initAudio();
+    
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.1);
+    
+    gain.gain.setValueAtTime(gameState.volume * 0.15, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.12);
+}
+
+function playPopSFX() {
+    if (!gameState.sfxEnabled) return;
+    initAudio();
+    
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.25);
+    
+    gain.gain.setValueAtTime(gameState.volume * 0.2, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.26);
+}
+
+function playResetSFX() {
+    if (!gameState.sfxEnabled) return;
+    initAudio();
+    
+    const now = audioCtx.currentTime;
+    const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5 arpeggio
+    
+    notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        
+        gain.gain.setValueAtTime(0, now + idx * 0.08);
+        gain.gain.linearRampToValueAtTime(gameState.volume * 0.15, now + idx * 0.08 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.3);
+        
+        osc.start(now + idx * 0.08);
+        osc.stop(now + idx * 0.08 + 0.35);
+    });
+}
+
+function startDrumRollingSound() {
+    if (!gameState.sfxEnabled) return;
+    initAudio();
+    
+    const now = audioCtx.currentTime;
+    
+    // Modulator for the roll (frequency modulation to simulate tumbling)
+    drumModNode = audioCtx.createOscillator();
+    drumModGainNode = audioCtx.createGain();
+    
+    // Main rumble carrier
+    drumOscNode = audioCtx.createOscillator();
+    drumGainNode = audioCtx.createGain();
+    
+    drumModNode.type = 'sine';
+    drumModNode.frequency.value = 16; // 16Hz LFO
+    drumModGainNode.gain.value = 35; // FM depth
+    
+    drumOscNode.type = 'triangle';
+    drumOscNode.frequency.value = 65; // Base frequency 65Hz
+    
+    drumGainNode.gain.setValueAtTime(0, now);
+    drumGainNode.gain.linearRampToValueAtTime(gameState.volume * 0.45, now + 0.2);
+    
+    // Connections: mod -> modGain -> carrier frequency
+    drumModNode.connect(drumModGainNode);
+    drumModGainNode.connect(drumOscNode.frequency);
+    
+    drumOscNode.connect(drumGainNode);
+    drumGainNode.connect(audioCtx.destination);
+    
+    drumModNode.start();
+    drumOscNode.start();
+}
+
+function stopDrumRollingSound() {
+    if (!drumOscNode) return;
+    const now = audioCtx ? audioCtx.currentTime : 0;
+    
+    try {
+        if (drumGainNode && audioCtx) {
+            drumGainNode.gain.setValueAtTime(drumGainNode.gain.value, now);
+            drumGainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        }
+        
+        setTimeout(() => {
+            if (drumOscNode) { drumOscNode.stop(); drumOscNode = null; }
+            if (drumModNode) { drumModNode.stop(); drumModNode = null; }
+            drumGainNode = null;
+            drumModGainNode = null;
+        }, 350);
+    } catch (e) {
+        console.error("Error stopping sound", e);
+    }
+}
+
+// ==========================================
+// SPEECH SYNTHESIS SYSTEM (VOZ)
+// ==========================================
+
+function setupSpeech() {
+    if ('speechSynthesis' in window) {
+        // Load voices initially
+        loadVoices();
+        if (window.speechSynthesis.onvoiceschanged !== undefined) {
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
+    } else {
+        // Disable TTS UI if not supported
+        document.getElementById('chk-tts').checked = false;
+        document.getElementById('chk-tts').disabled = true;
+        gameState.ttsEnabled = false;
+    }
+}
+
+function loadVoices() {
+    voices = window.speechSynthesis.getVoices();
+    const select = document.getElementById('voice-select');
+    if (!select) return;
+    
+    select.innerHTML = '';
+    
+    // Filter Spanish voices and add them first
+    const spanishVoices = voices.filter(v => v.lang.startsWith('es'));
+    const otherVoices = voices.filter(v => !v.lang.startsWith('es'));
+    
+    // Combine, putting Spanish voices at the top
+    const sortedVoices = [...spanishVoices, ...otherVoices];
+    
+    if (sortedVoices.length === 0) {
+        select.innerHTML = '<option value="">No se encontraron voces</option>';
+        return;
+    }
+    
+    sortedVoices.forEach(voice => {
+        const option = document.createElement('option');
+        option.value = voice.name;
+        option.textContent = `${voice.name} (${voice.lang})`;
+        
+        // Match saved voice, or select first Spanish voice as default
+        if (gameState.selectedVoiceName === voice.name) {
+            option.selected = true;
+        } else if (!gameState.selectedVoiceName && voice.lang.startsWith('es-')) {
+            option.selected = true;
+            gameState.selectedVoiceName = voice.name;
+        }
+        
+        select.appendChild(option);
+    });
+    
+    if (!gameState.selectedVoiceName && sortedVoices.length > 0) {
+        gameState.selectedVoiceName = sortedVoices[0].name;
+    }
+}
+
+function changeVoice(voiceName) {
+    gameState.selectedVoiceName = voiceName;
+    saveGameState();
+    playClickSFX();
+    speakBallText("El Bingote");
+}
+
+function speakBallText(text) {
+    if (!gameState.ttsEnabled || !('speechSynthesis' in window)) return;
+    
+    window.speechSynthesis.cancel(); // Cancel current speaking
+    
+    currentUtterance = new SpeechSynthesisUtterance(text);
+    
+    // Find selected voice
+    const activeVoice = voices.find(v => v.name === gameState.selectedVoiceName);
+    if (activeVoice) {
+        currentUtterance.voice = activeVoice;
+    }
+    
+    currentUtterance.volume = gameState.volume;
+    currentUtterance.rate = 0.95; // Slightly slower for better clarity
+    
+    window.speechSynthesis.speak(currentUtterance);
+}
+
+// Helper to format spoken text for bingo
+function formatSpeechText(number) {
+    if (gameState.gameMode === 75) {
+        const letter = getBallLetter75(number);
+        return `${letter}. ${number}.`;
+    } else {
+        return `Número, ${number}.`;
+    }
+}
+
+// ==========================================
+// RENDER INTERFACE COMPONENTS
+// ==========================================
+
+function getBallLetter75(num) {
+    if (num <= 15) return 'B';
+    if (num <= 30) return 'I';
+    if (num <= 45) return 'N';
+    if (num <= 60) return 'G';
+    return 'O';
+}
+
+function getBallColorClass(num) {
+    if (gameState.gameMode === 75) {
+        const letter = getBallLetter75(num).toLowerCase();
+        return `ball-color-${letter}`;
+    } else {
+        // Group by 10s for 90 balls
+        if (num <= 18) return 'ball-color-b';
+        if (num <= 36) return 'ball-color-i';
+        if (num <= 54) return 'ball-color-n';
+        if (num <= 72) return 'ball-color-g';
+        return 'ball-color-o';
+    }
+}
+
+function renderBoard() {
+    const grid = document.getElementById('board-grid');
+    grid.innerHTML = '';
+    
+    if (gameState.gameMode === 90) {
+        grid.className = 'board-grid grid-90';
+        for (let i = 1; i <= 90; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'board-cell';
+            cell.textContent = i;
+            cell.id = `cell-${i}`;
+            if (gameState.drawnBalls.includes(i)) {
+                cell.classList.add('called');
+            }
+            // Manual overrides allowed by clicking cells when not spinning
+            cell.onclick = () => handleCellManualClick(i);
+            grid.appendChild(cell);
+        }
+    } else {
+        grid.className = 'board-grid grid-75';
+        
+        // 75-Ball: Header Row (B I N G O)
+        const headerRow = document.createElement('div');
+        headerRow.className = 'board-column-header-row';
+        ['B','I','N','G','O'].forEach(letter => {
+            const hdr = document.createElement('div');
+            hdr.className = 'board-col-hdr';
+            hdr.textContent = letter;
+            headerRow.appendChild(hdr);
+        });
+        grid.appendChild(headerRow);
+        
+        // Columns structure: 15 rows, 5 items per row
+        // Row 0: 1 (B), 16 (I), 31 (N), 46 (G), 61 (O)
+        for (let row = 0; row < 15; row++) {
+            for (let col = 0; col < 5; col++) {
+                const num = (col * 15) + row + 1;
+                const cell = document.createElement('div');
+                cell.className = 'board-cell';
+                cell.textContent = num;
+                cell.id = `cell-${num}`;
+                if (gameState.drawnBalls.includes(num)) {
+                    cell.classList.add('called');
+                }
+                cell.onclick = () => handleCellManualClick(num);
+                grid.appendChild(cell);
+            }
+        }
+    }
+}
+
+function handleCellManualClick(num) {
+    if (isSpinning || drawnBallTarget) return; // Ignore during extraction animations
+    
+    initAudio();
+    if (gameState.drawnBalls.includes(num)) {
+        // Toggle off (remove ball)
+        gameState.drawnBalls = gameState.drawnBalls.filter(x => x !== num);
+        rebuildBallsPool();
+        const cell = document.getElementById(`cell-${num}`);
+        if (cell) cell.classList.remove('called');
+        playClickSFX();
+    } else {
+        // Toggle on (add ball)
+        gameState.drawnBalls.push(num);
+        rebuildBallsPool();
+        const cell = document.getElementById(`cell-${num}`);
+        if (cell) cell.classList.add('called');
+        playPopSFX();
+        speakBallText(formatSpeechText(num));
+    }
+    
+    updateStats();
+    renderHistory();
+    renderBigBall();
+    initSimulationBalls(); // Remove/Restore from virtual drum
+    saveGameState();
+}
+
+function updateStats() {
+    const total = gameState.gameMode;
+    const drawn = gameState.drawnBalls.length;
+    const remaining = total - drawn;
+    const percent = total > 0 ? Math.round((drawn / total) * 100) : 0;
+    
+    document.getElementById('stat-drawn').textContent = drawn;
+    document.getElementById('stat-remaining').textContent = remaining;
+    document.getElementById('stat-percent').textContent = `${percent}%`;
+}
+
+function renderHistory() {
+    const list = document.getElementById('history-list');
+    list.innerHTML = '';
+    
+    if (gameState.drawnBalls.length === 0) {
+        list.innerHTML = '<div class="history-empty-msg">No se han extraído bolillas aún.</div>';
+        return;
+    }
+    
+    // Show last 5 drawn balls, most recent first
+    const history = [...gameState.drawnBalls].reverse().slice(0, 5);
+    
+    // If we are currently animating an extraction, hide the absolute newest from history until animation finishes
+    const visibleHistory = (drawnBallTarget && history.length > 0) ? history.slice(1) : history;
+    
+    if (visibleHistory.length === 0) {
+        list.innerHTML = '<div class="history-empty-msg">Sorteando...</div>';
+        return;
+    }
+    
+    visibleHistory.forEach(num => {
+        const ball = document.createElement('div');
+        ball.className = `history-ball ${getBallColorClass(num)}`;
+        
+        let label = num;
+        if (gameState.gameMode === 75) {
+            label = `${getBallLetter75(num)}-${num}`;
+        }
+        
+        ball.textContent = label;
+        list.appendChild(ball);
+    });
+}
+
+function renderBigBall() {
+    const container = document.getElementById('big-ball-container');
+    const value = document.getElementById('big-ball-value');
+    const subtext = document.getElementById('big-ball-subtext');
+    
+    if (gameState.drawnBalls.length === 0) {
+        container.className = 'big-ball-container-empty';
+        value.textContent = '--';
+        subtext.textContent = 'Esperando sorteo...';
+        return;
+    }
+    
+    // If animating, display empty/rolling state or previous ball, until exit animation completes
+    const num = gameState.drawnBalls[gameState.drawnBalls.length - 1];
+    
+    if (drawnBallTarget) {
+        // Animating extraction
+        container.className = 'big-ball-container-empty';
+        value.textContent = '??';
+        subtext.textContent = 'GIRANDO TÓMBOLA...';
+        return;
+    }
+    
+    // Normal display
+    container.className = `big-ball-container-active ${getBallColorClass(num)}`;
+    
+    if (gameState.gameMode === 75) {
+        const letter = getBallLetter75(num);
+        value.innerHTML = `<span style="font-size: 3rem; display: block; line-height: 1; margin-bottom:-5px; color:rgba(255,255,255,0.7);">${letter}</span>${num}`;
+        subtext.textContent = `BOLA EXTRAÍDA: ${letter}-${num}`;
+    } else {
+        value.textContent = num;
+        subtext.textContent = `BOLA EXTRAÍDA: NÚMERO ${num}`;
+    }
+}
+
+// ==========================================
+// BINGO DRAW LOGIC
+// ==========================================
+
+function drawNextBall() {
+    if (isSpinning || drawnBallTarget) return; // Lock if already spinning/drawing
+    
+    if (gameState.ballsPool.length === 0) {
+        showAlert("¡El juego ha terminado! Todas las bolillas han sido extraídas.");
+        if (gameState.isPlaying) toggleAutoPlay();
+        return;
+    }
+    
+    initAudio();
+    isSpinning = true;
+    
+    // Disable game mode settings
+    document.getElementById('btn-mode-90').disabled = true;
+    document.getElementById('btn-mode-75').disabled = true;
+    
+    // Trigger high-speed spin in simulation
+    triggerSimulationSpin(true);
+    startDrumRollingSound();
+    
+    // Update Big Ball screen UI to spinning state
+    renderBigBall();
+    renderHistory();
+    
+    // Animation phases
+    // Phase 1: Spin drum (1.5s)
+    setTimeout(() => {
+        // Select random ball from pool
+        const randIdx = Math.floor(Math.random() * gameState.ballsPool.length);
+        const drawnNum = gameState.ballsPool[randIdx];
+        
+        // Phase 2: Animate ball popping out of drum in canvas
+        triggerBallExtractionAnimation(drawnNum);
+        stopDrumRollingSound();
+        
+    }, 1500);
+}
+
+function triggerBallExtractionAnimation(num) {
+    isSpinning = false;
+    triggerSimulationSpin(false); // Restore normal gravity/speed
+    
+    // Locate the ball in simulation, or create a temporary one if somehow missing
+    let simBall = simBalls.find(b => b.number === num);
+    if (!simBall) {
+        simBall = createSingleSimBall(num);
+        simBalls.push(simBall);
+    }
+    
+    drawnBallTarget = simBall;
+    drawnBallTarget.isTarget = true;
+    exitAnimationTimer = 0;
+}
+
+// Called by simulation loop once the target ball reaches the bottom chute exit
+function onBallExtracted(num) {
+    drawnBallTarget = null;
+    
+    // Update State
+    gameState.drawnBalls.push(num);
+    gameState.ballsPool = gameState.ballsPool.filter(x => x !== num);
+    
+    // Remove ball from canvas simulation pool completely
+    simBalls = simBalls.filter(b => b.number !== num);
+    
+    // Play sound and voice
+    playPopSFX();
+    speakBallText(formatSpeechText(num));
+    
+    // Render UI updates
+    const cell = document.getElementById(`cell-${num}`);
+    if (cell) cell.classList.add('called');
+    
+    updateStats();
+    renderHistory();
+    renderBigBall();
+    saveGameState();
+    
+    // If auto-play is active, schedule next draw
+    if (gameState.isPlaying) {
+        if (gameState.ballsPool.length === 0) {
+            toggleAutoPlay(); // Stop
+            showAlert("¡El juego ha terminado! Todas las bolillas han sido extraídas.");
+        } else {
+            // Schedule next draw based on speed slider
+            setTimeout(() => {
+                if (gameState.isPlaying) {
+                    drawNextBall();
+                }
+            }, gameState.autoSpeed * 1000);
+        }
+    }
+}
+
+// ==========================================
+// AUTOPLAY & SETTINGS CONTROLS
+// ==========================================
+
+function toggleAutoPlay() {
+    initAudio();
+    const btn = document.getElementById('btn-autoplay');
+    const icon = document.getElementById('autoplay-icon');
+    const text = document.getElementById('autoplay-text');
+    
+    if (gameState.isPlaying) {
+        // Turn OFF
+        gameState.isPlaying = false;
+        btn.classList.remove('active');
+        icon.textContent = '▶';
+        text.textContent = 'Auto-Sorteo';
+    } else {
+        // Turn ON
+        if (gameState.ballsPool.length === 0) {
+            showAlert("No quedan bolillas en la tómbola.");
+            return;
+        }
+        gameState.isPlaying = true;
+        btn.classList.add('active');
+        icon.textContent = '⏸';
+        text.textContent = 'Pausar';
+        
+        // Immediately draw first ball if not currently animating
+        if (!isSpinning && !drawnBallTarget) {
+            drawNextBall();
+        }
+    }
+}
+
+function updateAutoSpeed(val) {
+    gameState.autoSpeed = parseInt(val);
+    document.getElementById('speed-value').textContent = val;
+    saveGameState();
+}
+
+function toggleSFX(checked) {
+    gameState.sfxEnabled = checked;
+    saveGameState();
+}
+
+function toggleTTS(checked) {
+    gameState.ttsEnabled = checked;
+    saveGameState();
+}
+
+function updateVolume(val) {
+    gameState.volume = parseFloat(val);
+    saveGameState();
+}
+
+// ==========================================
+// RESET GAME CONTROLS & MODALS
+// ==========================================
+
+function confirmReset() {
+    initAudio();
+    playClickSFX();
+    document.getElementById('confirm-modal').classList.add('active');
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirm-modal').classList.remove('active');
+}
+
+function executeReset() {
+    closeConfirmModal();
+    
+    // Stop autoplay
+    if (gameState.isPlaying) {
+        toggleAutoPlay();
+    }
+    
+    // Clear speaking
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
+    
+    resetGameState();
+    
+    // Re-enable mode buttons
+    document.getElementById('btn-mode-90').disabled = false;
+    document.getElementById('btn-mode-75').disabled = false;
+    
+    // Render UI updates
+    renderBoard();
+    updateStats();
+    renderHistory();
+    renderBigBall();
+    
+    // Reset canvas balls
+    initSimulationBalls();
+    
+    playResetSFX();
+}
+
+function showAlert(msg, title = "Aviso") {
+    document.getElementById('alert-title').textContent = title;
+    document.getElementById('alert-message').textContent = msg;
+    document.getElementById('alert-modal').classList.add('active');
+}
+
+function closeAlertModal() {
+    document.getElementById('alert-modal').classList.remove('active');
+}
+
+// ==========================================
+// BINGO CARD GENERATOR LOGIC
+// ==========================================
+
+function generateBingoCards() {
+    initAudio();
+    playClickSFX();
+    
+    const qtyInput = document.getElementById('card-qty');
+    let qty = parseInt(qtyInput.value) || 2;
+    if (qty < 1) qty = 1;
+    if (qty > 100) qty = 100; // safety ceiling
+    
+    const area = document.getElementById('printable-cards-area');
+    area.innerHTML = '';
+    
+    for (let i = 1; i <= qty; i++) {
+        const cardNode = (gameState.gameMode === 90) ? create90BallCard(i) : create75BallCard(i);
+        area.appendChild(cardNode);
+    }
+    
+    document.getElementById('btn-print-cards').disabled = false;
+    
+    // Scroll down to cards section on screen so users know they were generated
+    area.scrollIntoView({ behavior: 'smooth' });
+}
+
+function clearBingoCards() {
+    initAudio();
+    playClickSFX();
+    document.getElementById('printable-cards-area').innerHTML = '';
+    document.getElementById('btn-print-cards').disabled = true;
+}
+
+// Math logic to generate valid 75-ball (5x5 grid with FREE space)
+function create75BallCard(id) {
+    const card = document.createElement('div');
+    card.className = 'bingo-card';
+    
+    // Card Header
+    const head = document.createElement('div');
+    head.className = 'card-header';
+    head.innerHTML = `
+        <div class="card-title">EL BINGOTE! (75)</div>
+        <div class="card-id">Cartón #${id}</div>
+    `;
+    card.appendChild(head);
+    
+    // Card Grid
+    const grid = document.createElement('div');
+    grid.className = 'card-grid-75';
+    
+    // Grid Headers (B I N G O)
+    ['B','I','N','G','O'].forEach(l => {
+        const cell = document.createElement('div');
+        cell.className = 'card-hdr-cell';
+        cell.textContent = l;
+        grid.appendChild(cell);
+    });
+    
+    // Columns logic: choose 5 random sorted non-repeating numbers in their ranges
+    const columns = [];
+    for (let c = 0; colRange = [ {min:1, max:15}, {min:16, max:30}, {min:31, max:45}, {min:46, max:60}, {min:61, max:75} ][c], c < 5; c++) {
+        const pool = [];
+        for (let v = colRange.min; v <= colRange.max; v++) pool.push(v);
+        
+        // Select 5 random numbers
+        const colNums = [];
+        for (let r = 0; r < 5; r++) {
+            const idx = Math.floor(Math.random() * pool.length);
+            colNums.push(pool.splice(idx, 1)[0]);
+        }
+        colNums.sort((a,b) => a-b);
+        columns.push(colNums);
+    }
+    
+    // Fill 5x5 grid row by row
+    for (let row = 0; row < 5; row++) {
+        for (let col = 0; col < 5; col++) {
+            const cell = document.createElement('div');
+            
+            // Check for center FREE space (row 2, col 2)
+            if (row === 2 && col === 2) {
+                cell.className = 'card-num-cell free-space';
+                cell.textContent = 'LIBRE';
+            } else {
+                cell.className = 'card-num-cell';
+                cell.textContent = columns[col][row];
+            }
+            grid.appendChild(cell);
+        }
+    }
+    
+    card.appendChild(grid);
+    return card;
+}
+
+// Math logic to generate valid 90-ball card (3 rows x 9 columns)
+function create90BallCard(id) {
+    const card = document.createElement('div');
+    card.className = 'bingo-card';
+    
+    // Card Header
+    const head = document.createElement('div');
+    head.className = 'card-header';
+    head.innerHTML = `
+        <div class="card-title">EL BINGOTE! (90)</div>
+        <div class="card-id">Cartón #${id}</div>
+    `;
+    card.appendChild(head);
+    
+    // Generate valid numbers grid
+    const gridData = make90BallCardData();
+    
+    // Card Grid Layout
+    const grid = document.createElement('div');
+    grid.className = 'card-grid-90';
+    
+    for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 9; col++) {
+            const cell = document.createElement('div');
+            const val = gridData[row][col];
+            if (val === null) {
+                cell.className = 'card-num-cell empty-cell';
+                cell.textContent = '';
+            } else {
+                cell.className = 'card-num-cell';
+                cell.textContent = val;
+            }
+            grid.appendChild(cell);
+        }
+    }
+    
+    card.appendChild(grid);
+    return card;
+}
+
+// Complex mathematics to get a true 90-ball ticket
+// 3 rows, 9 columns. Exactly 15 numbers total. Exactly 5 numbers per row.
+// Columns: 0 (1-9), 1 (10-19), ..., 8 (80-90).
+// Each column has at least 1 number, and at most 3 numbers.
+function make90BallCardData() {
+    let grid = Array(3).fill(null).map(() => Array(9).fill(null));
+    let attempts = 0;
+    
+    while (attempts < 500) {
+        attempts++;
+        grid = Array(3).fill(null).map(() => Array(9).fill(null));
+        
+        // 1. Generate columns pools
+        const colPools = [];
+        for (let c = 0; c < 9; c++) {
+            const min = c === 0 ? 1 : c * 10;
+            const max = c === 8 ? 90 : c * 10 + 9;
+            const pool = [];
+            for (let v = min; v <= max; v++) pool.push(v);
+            colPools.push(pool);
+        }
+        
+        // 2. Decide how many numbers per column (sum = 15)
+        // Initialize all columns with at least 1 number
+        const colCounts = Array(9).fill(1);
+        let remaining = 6;
+        
+        // Distribute extra numbers, making sure no column exceeds 2 (or occasionally 3, standard is max 3, usually 2 or 1)
+        while (remaining > 0) {
+            const col = Math.floor(Math.random() * 9);
+            if (colCounts[col] < 2.5) { // max 2 is easier for row balancing, but 3 is allowed. Let's limit to 2 or 3
+                colCounts[col]++;
+                remaining--;
+            }
+        }
+        
+        // 3. For each column, extract sorted numbers
+        const colNumbers = [];
+        for (let c = 0; c < 9; c++) {
+            const pool = [...colPools[c]];
+            const nums = [];
+            for (let i = 0; i < colCounts[c]; i++) {
+                const idx = Math.floor(Math.random() * pool.length);
+                nums.push(pool.splice(idx, 1)[0]);
+            }
+            nums.sort((a,b) => a-b);
+            colNumbers.push(nums);
+        }
+        
+        // 4. Distribute numbers into rows
+        // We must place columns numbers into rows (3 rows) such that:
+        // - Each row has exactly 5 numbers.
+        // - Numbers in columns are sorted down the rows (row 0 < row 1 < row 2, if they share a column).
+        // Let's do this by backtracking or retry.
+        
+        let success = true;
+        // Keep track of count of numbers in each row
+        const rowCounts = [0, 0, 0];
+        
+        // We will assign columns one by one
+        for (let c = 0; c < 9; c++) {
+            const count = colCounts[c];
+            const nums = colNumbers[c];
+            
+            if (count === 1) {
+                // Pick a row that has < 5 elements
+                const eligibleRows = [0, 1, 2].filter(r => rowCounts[r] < 5);
+                if (eligibleRows.length === 0) { success = false; break; }
+                const row = eligibleRows[Math.floor(Math.random() * eligibleRows.length)];
+                grid[row][c] = nums[0];
+                rowCounts[row]++;
+            } 
+            else if (count === 2) {
+                // Pick 2 rows that have < 5 elements, maintaining sorted order (r1 < r2)
+                const eligibleCombos = [
+                    [0, 1], [0, 2], [1, 2]
+                ].filter(([r1, r2]) => rowCounts[r1] < 5 && rowCounts[r2] < 5);
+                
+                if (eligibleCombos.length === 0) { success = false; break; }
+                
+                const [r1, r2] = eligibleCombos[Math.floor(Math.random() * eligibleCombos.length)];
+                grid[r1][c] = nums[0];
+                grid[r2][c] = nums[1];
+                rowCounts[r1]++;
+                rowCounts[r2]++;
+            } 
+            else if (count === 3) {
+                // Must place in all 3 rows
+                if (rowCounts[0] >= 5 || rowCounts[1] >= 5 || rowCounts[2] >= 5) { success = false; break; }
+                grid[0][c] = nums[0];
+                grid[1][c] = nums[1];
+                grid[2][c] = nums[2];
+                rowCounts[0]++;
+                rowCounts[1]++;
+                rowCounts[2]++;
+            }
+        }
+        
+        // Double check: if all rows have exactly 5 numbers, we succeed!
+        if (success && rowCounts[0] === 5 && rowCounts[1] === 5 && rowCounts[2] === 5) {
+            return grid;
+        }
+    }
+    
+    // Backup fallback in case of algorithm timeout (extremely rare, but guarantees UI stability)
+    return getFallback90CardGrid();
+}
+
+// Fallback card structure in case of algorithm loop safety
+function getFallback90CardGrid() {
+    return [
+        [5,  null, 22,   null, 40,   55,   null, 71,   82],
+        [null, 12,   null, 34,   46,   null, 63,   78,   89],
+        [8,    19,   28,   37,   null, null, 68,   null, null]
+    ];
+}
+
+// ==========================================
+// CANVAS GRAPHICS & BALL PHYSICS SIMULATOR
+// ==========================================
+
+class SimulationBall {
+    constructor(number, x, y, radius, colorClass) {
+        this.number = number;
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 4;
+        this.vy = (Math.random() - 0.5) * 4;
+        this.radius = radius;
+        this.colorClass = colorClass;
+        this.mass = 1;
+        this.isTarget = false;
+    }
+}
+
+function initSimulationBalls() {
+    simBalls = [];
+    const maxBalls = gameState.gameMode;
+    
+    // Retrieve colors/ratios
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    const cx = canvasWidth / 2;
+    const cy = canvasHeight / 2;
+    const R = cx - 22; // cage radius
+    
+    const ballRadius = gameState.gameMode === 90 ? 10 : 11;
+    
+    // Place balls in remaining pool inside the circular cage
+    gameState.ballsPool.forEach(num => {
+        // Place randomly inside the circle (using polar coordinates to ensure inside bounds)
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * (R - ballRadius - 15);
+        const bx = cx + Math.cos(angle) * radius;
+        const by = cy + Math.sin(angle) * radius;
+        
+        const b = new SimulationBall(num, bx, by, ballRadius, getBallColorClass(num));
+        simBalls.push(b);
+    });
+}
+
+function triggerSimulationSpin(spin) {
+    if (spin) {
+        // Boost velocity of all balls
+        simBalls.forEach(b => {
+            b.vx = (Math.random() - 0.5) * 22;
+            b.vy = (Math.random() - 0.5) * 22;
+        });
+    }
+}
+
+function createSingleSimBall(num) {
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    return new SimulationBall(num, cx, cy - 20, 10, getBallColorClass(num));
+}
+
+function startSimulation() {
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+    }
+    
+    function loop() {
+        updateSimulationPhysics();
+        drawSimulationCanvas();
+        animationFrameId = requestAnimationFrame(loop);
+    }
+    
+    animationFrameId = requestAnimationFrame(loop);
+}
+
+function updateSimulationPhysics() {
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const R = cx - 20; // cage boundary radius
+    
+    const gravity = isSpinning ? 0 : 0.15; // Gravity when resting, 0 when spinning
+    const friction = 0.985; // Air friction
+    
+    // 1. Move and bounce balls off outer cage
+    simBalls.forEach(b => {
+        if (b.isTarget) {
+            // Animating exit chute!
+            // Move ball slowly towards bottom center exit chute
+            const exitX = cx;
+            const exitY = cy + R + 25; // below the exit hole
+            
+            const dx = exitX - b.x;
+            const dy = exitY - b.y;
+            
+            b.x += dx * 0.1;
+            b.y += dy * 0.1;
+            
+            // Check if it reached exit
+            exitAnimationTimer++;
+            if (exitAnimationTimer > 40 || Math.abs(dx) < 2 && Math.abs(dy) < 2) {
+                b.isTarget = false;
+                onBallExtracted(b.number);
+            }
+            return;
+        }
+        
+        // Normal ball physics
+        b.vy += gravity;
+        b.vx *= friction;
+        b.vy *= friction;
+        
+        // Add a tiny random shake when spinning
+        if (isSpinning) {
+            b.vx += (Math.random() - 0.5) * 1.5;
+            b.vy += (Math.random() - 0.5) * 1.5;
+        }
+        
+        b.x += b.vx;
+        b.y += b.vy;
+        
+        // Cage bounce check (circular container boundary)
+        const dx = b.x - cx;
+        const dy = b.y - cy;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        if (dist + b.radius > R) {
+            // Normal unit vector
+            const nx = dx / dist;
+            const ny = dy / dist;
+            
+            // Dot product velocity and normal
+            const dot = b.vx * nx + b.vy * ny;
+            
+            if (dot > 0) {
+                // Reflect velocity
+                b.vx = b.vx - 2 * dot * nx;
+                b.vy = b.vy - 2 * dot * ny;
+                
+                // RESTITUTION DAMPING
+                b.vx *= 0.75;
+                b.vy *= 0.75;
+            }
+            
+            // Reposition on border
+            b.x = cx + nx * (R - b.radius - 1);
+            b.y = cy + ny * (R - b.radius - 1);
+        }
+    });
+    
+    // 2. Ball-to-ball collisions (elastic)
+    for (let i = 0; i < simBalls.length; i++) {
+        const bA = simBalls[i];
+        if (bA.isTarget) continue;
+        
+        for (let j = i + 1; j < simBalls.length; j++) {
+            const bB = simBalls[j];
+            if (bB.isTarget) continue;
+            
+            const dx = bB.x - bA.x;
+            const dy = bB.y - bA.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const minDist = bA.radius + bB.radius;
+            
+            if (dist < minDist && dist > 0.1) {
+                // Resolve overlap immediately
+                const overlap = minDist - dist;
+                const nx = dx / dist;
+                const ny = dy / dist;
+                
+                bA.x -= nx * overlap * 0.5;
+                bA.y -= ny * overlap * 0.5;
+                bB.x += nx * overlap * 0.5;
+                bB.y += ny * overlap * 0.5;
+                
+                // Elastic velocity impact response
+                const kx = bA.vx - bB.vx;
+                const ky = bA.vy - bB.vy;
+                
+                const p = 2 * (nx * kx + ny * ky) / (bA.mass + bB.mass);
+                
+                bA.vx -= p * bB.mass * nx;
+                bA.vy -= p * bB.mass * ny;
+                bB.vx += p * bA.mass * nx;
+                bB.vy += p * bA.mass * ny;
+            }
+        }
+    }
+}
+
+function drawSimulationCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const R = cx - 20;
+    
+    // 1. Draw Metallic outer ring of raffle drum
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Inner glass backing
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 2. Draw exit hole at bottom
+    ctx.fillStyle = '#020617';
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy + R - 5, 20, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    
+    // 3. Draw balls
+    simBalls.forEach(b => {
+        // Retrieve color code based on theme class name
+        let gradientColors = ['#ff5722', '#d84315']; // fallback orange
+        let labelColor = '#ffffff';
+        
+        switch(b.colorClass) {
+            case 'ball-color-b': gradientColors = ['#3b82f6', '#1d4ed8']; break;
+            case 'ball-color-i': gradientColors = ['#ef4444', '#b91c1c']; break;
+            case 'ball-color-n': gradientColors = ['#f8fafc', '#94a3b8']; labelColor = '#0f172a'; break;
+            case 'ball-color-g': gradientColors = ['#10b981', '#047857']; break;
+            case 'ball-color-o': gradientColors = ['#f59e0b', '#b45309']; break;
+        }
+        
+        // Draw Ball circle
+        const grad = ctx.createRadialGradient(
+            b.x - b.radius * 0.3, b.y - b.radius * 0.3, b.radius * 0.1,
+            b.x, b.y, b.radius
+        );
+        grad.addColorStop(0, gradientColors[0]);
+        grad.addColorStop(1, gradientColors[1]);
+        
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Ball border
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        // Shine spot
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.beginPath();
+        ctx.arc(b.x - b.radius * 0.3, b.y - b.radius * 0.3, b.radius * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Number Label on Ball (only if ball is big enough to read, e.g. radius > 9)
+        if (b.radius > 8) {
+            ctx.fillStyle = labelColor;
+            ctx.font = `bold ${b.radius * 1.1}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(b.number, b.x, b.y + 0.5);
+        }
+    });
+    
+    // 4. Draw front transparent cage grid lines (simulates wire cage structure)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1.5;
+    
+    // Vertical arcs
+    for (let offset = -R + 30; offset < R; offset += 35) {
+        if (offset === 0) continue;
+        const xOffset = Math.abs(offset);
+        const radius = Math.sqrt(R*R - xOffset*xOffset);
+        
+        ctx.beginPath();
+        ctx.ellipse(cx + offset/2, cy, Math.abs(offset/2), R, 0, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    
+    // Horizontal wire circles
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    for (let r = 40; r < R; r += 40) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+}
