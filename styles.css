@@ -85,10 +85,11 @@ body {
 
 /* Header Styles */
 .app-header {
+    position: relative;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: min(12px, 1.5vh) min(30px, 3vw);
+    padding: min(12px, 1.5vh) 75px min(12px, 1.5vh) min(30px, 3vw);
     background: rgba(10, 34, 64, 0.5);
     backdrop-filter: blur(8px);
     border-radius: 16px;
@@ -742,45 +743,20 @@ body {
 }
 
 .footer-layout {
-    display: grid;
-    grid-template-columns: 1.2fr 0.8fr 1.5fr;
-    gap: 20px;
-}
-
-@media (max-width: 992px) {
-    .footer-layout {
-        grid-template-columns: 1fr;
-    }
-}
-
-.settings-block, .reset-block, .card-generator-block {
     display: flex;
-    flex-direction: column;
-    gap: min(12px, 1.5vh);
-    border-right: 1px solid var(--border-color);
-    padding-right: 20px;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+    flex-wrap: wrap;
 }
 
-.settings-block {
-    border-left: none;
-}
-
-.card-generator-block {
-    border-right: none;
-    padding-right: 0;
-}
-
-@media (max-width: 992px) {
-    .settings-block, .reset-block, .card-generator-block {
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-        padding-right: 0;
-        padding-bottom: 15px;
-    }
-    .card-generator-block {
-        border-bottom: none;
-        padding-bottom: 0;
-    }
+.footer-layout .btn-action {
+    min-width: 240px;
+    padding: 14px 28px;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    border-radius: 12px;
 }
 
 .settings-block h3, .card-generator-block h3 {
@@ -1027,6 +1003,100 @@ input:checked + .switch-slider:before {
 .modal-actions .btn-action {
     width: auto;
     min-width: 120px;
+}
+
+/* Configuration Modal Content Styles */
+.config-modal-content {
+    max-width: 800px;
+    width: 95%;
+    padding: 30px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.modal-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+    margin-bottom: 5px;
+}
+
+.modal-header-container h2 {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--brand-yellow);
+    margin: 0;
+}
+
+.btn-close {
+    background: transparent;
+    border: none;
+    color: var(--secondary);
+    font-size: 1.8rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.btn-close:hover {
+    color: var(--accent-red);
+}
+
+.config-modal-body {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 30px;
+}
+
+@media (max-width: 768px) {
+    .config-modal-body {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+}
+
+.settings-block-modal, .card-generator-block-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.settings-block-modal h3, .card-generator-block-modal h3 {
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--brand-yellow);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+    padding-bottom: 6px;
+}
+
+.generator-controls-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+}
+
+.generator-actions-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.generator-actions-modal .btn-action {
+    width: 100%;
+    text-align: center;
+    font-size: 0.85rem;
+    padding: 10px 16px;
+    border-radius: 8px;
+    justify-content: center;
 }
 
 /* Printable Cards Section (On-screen visualization) */
@@ -1277,4 +1347,126 @@ input:checked + .switch-slider:before {
 .app-rights a:hover {
     color: var(--brand-orange);
     text-decoration: underline;
+}
+
+/* Config Button Icon Styles */
+.btn-config-icon {
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    transform: translateY(-50%) scale(1);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
+    color: var(--primary);
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    padding: 0;
+    z-index: 10;
+}
+
+.btn-config-icon:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-50%) scale(1.08);
+    box-shadow: 0 0 15px rgba(250, 204, 21, 0.25);
+}
+
+.btn-config-icon:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+.btn-config-icon svg.icon-gear {
+    width: 22px;
+    height: 22px;
+    stroke: var(--brand-yellow);
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-config-icon:hover svg.icon-gear {
+    transform: rotate(180deg);
+}
+
+/* Mobile responsive adjustments for config button */
+@media (max-width: 600px) {
+    .btn-config-icon {
+        top: 15px;
+        right: 15px;
+        transform: scale(1);
+    }
+    .btn-config-icon:hover {
+        transform: scale(1.08);
+    }
+    .btn-config-icon:active {
+        transform: scale(0.95);
+    }
+}
+
+/* Real-time Sync Section in Config Modal */
+.sync-section-modal {
+    border-top: 1px dashed rgba(255, 255, 255, 0.15);
+    padding-top: 15px;
+    margin-top: 10px;
+}
+
+.sync-section-modal .setting-text-desc {
+    margin-bottom: 10px;
+    font-size: 0.8rem;
+    color: var(--secondary);
+    opacity: 0.8;
+}
+
+.sync-controls-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+}
+
+.sync-controls-wrapper #btn-open-viewer {
+    width: auto;
+    min-width: 250px;
+}
+
+.share-link-group {
+    display: flex;
+    flex-grow: 1;
+    min-width: 280px;
+    gap: 8px;
+}
+
+.share-link-group input.sync-url-input {
+    flex-grow: 1;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--primary);
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.share-link-group input.sync-url-input:focus {
+    border-color: var(--brand-yellow);
+}
+
+.share-link-group #btn-copy-sync {
+    width: auto;
+    padding: 8px 15px;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+.sync-help-note {
+    font-size: 0.75rem;
+    color: var(--secondary);
+    margin-top: 5px;
+    opacity: 0.7;
 }

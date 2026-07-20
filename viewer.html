@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pantalla de Transmisión - El Bingote!</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Specific Styles for Viewer Screen */
+        .viewer-header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .btn-sound-toggle {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-family: var(--font-primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        .btn-sound-toggle:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .btn-sound-toggle.active {
+            background: linear-gradient(135deg, var(--brand-orange) 0%, #d84315 100%);
+            border-color: transparent;
+            box-shadow: 0 2px 8px rgba(255, 69, 0, 0.4);
+        }
+        .sync-status {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent-red);
+            display: inline-block;
+        }
+        .status-dot.connected {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+        .status-dot.connecting {
+            background-color: var(--accent-gold);
+            animation: pulse 1s infinite alternate;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+        /* Hide controls footer in viewer */
+        .viewer-container {
+            display: flex;
+            flex-direction: column;
+            gap: min(20px, 2vh);
+            max-width: 1500px;
+            margin: 0 auto;
+            height: 100%;
+        }
+        .viewer-main-grid {
+            display: grid;
+            grid-template-columns: minmax(260px, 1.1fr) minmax(260px, 1fr) minmax(360px, 2fr);
+            gap: 15px;
+            height: calc(100vh - 120px);
+            min-height: 460px;
+        }
+        @media (max-width: 1023px) {
+            .viewer-main-grid {
+                grid-template-columns: 1fr 1fr;
+                height: auto;
+            }
+            .viewer-board-panel {
+                grid-column: span 2;
+            }
+        }
+        @media (max-width: 768px) {
+            .viewer-main-grid {
+                grid-template-columns: 1fr;
+            }
+            .viewer-board-panel {
+                grid-column: span 1;
+            }
+        }
+        .viewer-footer {
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="viewer-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-container">
+                <img src="logo.jpg" alt="El Bingote!" class="app-logo" id="logo-img" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='block';">
+                <div class="logo-fallback" id="logo-fallback" style="display: none;">El Bingote!</div>
+            </div>
+            <div class="viewer-header-controls">
+                <div class="sync-status">
+                    <span id="sync-dot" class="status-dot connecting"></span>
+                    <span id="sync-text">Conectando...</span>
+                </div>
+                <button id="btn-sound-viewer" class="btn-sound-toggle" onclick="toggleViewerSound()">
+                    <span id="sound-icon">🔇</span> <span id="sound-text">Activar Sonido</span>
+                </button>
+                <div class="game-type-selector">
+                    <button id="viewer-mode-lbl" class="btn-toggle active" style="cursor: default;" disabled>Cargando...</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Layout Grid -->
+        <main class="viewer-main-grid">
+            
+            <!-- Left Side: Visual Drum -->
+            <section class="visual-panel glass-panel">
+                <div class="panel-header">
+                    <h2>TÓMBOLA VIRTUAL</h2>
+                </div>
+                
+                <!-- Raffle Drum (Tómbola) Container -->
+                <div class="drum-outer-wrapper">
+                    <div class="drum-stand-left"></div>
+                    <div class="drum-sphere-container">
+                        <canvas id="drum-canvas" width="300" height="300"></canvas>
+                        <div class="drum-glass-reflection"></div>
+                    </div>
+                    <div class="drum-stand-right"></div>
+                    <div class="drum-chute">
+                        <div class="chute-exit"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Center Side: Big Ball display & History -->
+            <section class="display-panel glass-panel">
+                <div class="panel-header">
+                    <h2>BOLILLA EXTRAÍDA</h2>
+                </div>
+                
+                <!-- Big Ball Screen -->
+                <div class="big-ball-viewport">
+                    <div id="big-ball-container" class="big-ball-container-empty">
+                        <div class="big-ball-reflection"></div>
+                        <div id="big-ball-value" class="big-ball-value">--</div>
+                    </div>
+                    <div id="big-ball-subtext" class="big-ball-subtext">Esperando sorteo...</div>
+                </div>
+
+                <!-- Last 5 Balls History -->
+                <div class="history-container">
+                    <h3>HISTORIAL RECIENTE</h3>
+                    <div class="history-balls-list" id="history-list">
+                        <div class="history-empty-msg">No se han extraído bolillas aún.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Side: Full Board of Called Numbers -->
+            <section class="board-panel glass-panel viewer-board-panel">
+                <div class="board-header">
+                    <h2>TABLERO DE CONTROL</h2>
+                    <div class="board-stats">
+                        <div class="stat-item">
+                            <span class="stat-num" id="stat-drawn">0</span>
+                            <span class="stat-lbl">Extraídas</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-num" id="stat-remaining">--</span>
+                            <span class="stat-lbl">Restantes</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-num" id="stat-percent">0%</span>
+                            <span class="stat-lbl">Completado</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Board Grid Wrapper -->
+                <div class="board-grid-scroll">
+                    <div id="board-grid" class="board-grid grid-90">
+                        <!-- Numbers will be injected here -->
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <footer class="viewer-footer">
+            <p>Derechos Reservados: <a href="https://elbingote.com" target="_blank">elbingote.com</a> by Proari Systems | Conexión en Tiempo Real</p>
+        </footer>
+    </div>
+
+    <!-- App Logic -->
+    <script src="viewer.js"></script>
+</body>
+</html>

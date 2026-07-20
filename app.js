@@ -8,7 +8,8 @@ let gameState = {
     sfxEnabled: true,
     ttsEnabled: true,
     volume: 0.7,
-    selectedVoiceName: ''
+    selectedVoiceName: '',
+    syncCode: ''
 };
 
 // Web Audio API Synthesizer Context
@@ -69,8 +70,12 @@ function initApp() {
         if (e.key === 'Escape') {
             closeConfirmModal();
             closeAlertModal();
+            closeConfigModal();
         }
     });
+
+    // Initialize synchronization state for real-time viewer
+    initSyncState();
 }
 
 // ==========================================
@@ -100,6 +105,7 @@ function loadGameState() {
             gameState.ttsEnabled = parsed.ttsEnabled !== undefined ? parsed.ttsEnabled : true;
             gameState.volume = parsed.volume !== undefined ? parsed.volume : 0.7;
             gameState.selectedVoiceName = parsed.selectedVoiceName || '';
+            gameState.syncCode = parsed.syncCode || '';
             
             // Re-generate pools
             rebuildBallsPool();
@@ -129,6 +135,96 @@ function rebuildBallsPool() {
     }
 }
 
+// ==========================================
+// REAL-TIME SYNC UTILITIES
+// ==========================================
+
+function generateSyncCode() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let code = '';
+    for (let i = 0; i < 12; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
+
+function getViewerUrl() {
+    let baseUrl = window.location.href.split('?')[0].split('#')[0];
+    if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl + 'viewer.html';
+    } else if (baseUrl.endsWith('index.html')) {
+        baseUrl = baseUrl.replace('index.html', 'viewer.html');
+    } else {
+        baseUrl = baseUrl + '/viewer.html';
+    }
+    return baseUrl + '?game=' + gameState.syncCode;
+}
+
+function initSyncState() {
+    if (!gameState.syncCode) {
+        gameState.syncCode = generateSyncCode();
+        saveGameState();
+    }
+    // Update input value with sharing URL
+    const urlInput = document.getElementById('sync-share-url');
+    if (urlInput) {
+        urlInput.value = getViewerUrl();
+    }
+    // Initial broadcast of sync to cache the current state
+    broadcastState('sync');
+}
+
+function openViewerTab() {
+    window.open(getViewerUrl(), '_blank');
+}
+
+function copySyncLink() {
+    const urlInput = document.getElementById('sync-share-url');
+    if (urlInput) {
+        urlInput.select();
+        urlInput.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(urlInput.value)
+            .then(() => {
+                const btn = document.getElementById('btn-copy-sync');
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copiado';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            })
+            .catch(err => {
+                console.error("Error al copiar enlace: ", err);
+            });
+    }
+}
+
+function broadcastState(event, data = {}) {
+    if (!gameState.syncCode) return;
+    
+    const payload = {
+        event: event,
+        gameMode: gameState.gameMode,
+        drawnBalls: gameState.drawnBalls,
+        ballsPool: gameState.ballsPool,
+        isPlaying: gameState.isPlaying,
+        isSpinning: isSpinning,
+        drawnBallNumber: drawnBallTarget ? drawnBallTarget.number : null,
+        data: data,
+        timestamp: Date.now()
+    };
+    
+    // Broadcast status over ntfy.sh
+    fetch('https://ntfy.sh/el-bingote-' + gameState.syncCode, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    }).catch(err => {
+        console.warn("Failed to broadcast state change:", err);
+    });
+}
+
 function setGameMode(mode) {
     if (gameState.drawnBalls.length > 0) {
         showAlert("No se puede cambiar el modo de juego una vez iniciado. Reinicia el juego primero.");
@@ -145,6 +241,9 @@ function setGameMode(mode) {
     
     initSimulationBalls();
     playClickSFX();
+
+    // Broadcast change
+    broadcastState('mode_change');
 }
 
 function updateGameModeUI() {
@@ -603,6 +702,9 @@ function drawNextBall() {
     // Update Big Ball screen UI to spinning state
     renderBigBall();
     renderHistory();
+
+    // Broadcast spin event
+    broadcastState('spin');
     
     // Animation phases
     // Phase 1: Spin drum (1.5s)
@@ -611,6 +713,9 @@ function drawNextBall() {
         const randIdx = Math.floor(Math.random() * gameState.ballsPool.length);
         const drawnNum = gameState.ballsPool[randIdx];
         
+        // Broadcast selected ball extraction
+        broadcastState('extract', { num: drawnNum });
+
         // Phase 2: Animate ball popping out of drum in canvas
         triggerBallExtractionAnimation(drawnNum);
         stopDrumRollingSound();
@@ -658,6 +763,9 @@ function onBallExtracted(num) {
     renderBigBall();
     saveGameState();
     
+    // Broadcast ball extraction completion
+    broadcastState('extracted', { num: num });
+
     // If auto-play is active, schedule next draw
     if (gameState.isPlaying) {
         if (gameState.ballsPool.length === 0) {
@@ -706,6 +814,9 @@ function toggleAutoPlay() {
             drawNextBall();
         }
     }
+
+    // Broadcast sync status
+    broadcastState('sync');
 }
 
 function updateAutoSpeed(val) {
@@ -743,6 +854,16 @@ function closeConfirmModal() {
     document.getElementById('confirm-modal').classList.remove('active');
 }
 
+function openConfigModal() {
+    initAudio();
+    playClickSFX();
+    document.getElementById('config-modal').classList.add('active');
+}
+
+function closeConfigModal() {
+    document.getElementById('config-modal').classList.remove('active');
+}
+
 function executeReset() {
     closeConfirmModal();
     
@@ -772,6 +893,9 @@ function executeReset() {
     initSimulationBalls();
     
     playResetSFX();
+
+    // Broadcast reset event
+    broadcastState('reset');
 }
 
 function showAlert(msg, title = "Aviso") {
@@ -806,6 +930,9 @@ function generateBingoCards() {
     }
     
     document.getElementById('btn-print-cards').disabled = false;
+    
+    // Close the configuration modal since cards have been generated
+    closeConfigModal();
     
     // Scroll down to cards section on screen so users know they were generated
     area.scrollIntoView({ behavior: 'smooth' });
