@@ -1,6 +1,6 @@
 // Game State Object
 let gameState = {
-    gameMode: 90, // 90 or 75
+    gameMode: 75, // 90 or 75
     drawnBalls: [],
     ballsPool: [],
     isPlaying: false,
@@ -87,8 +87,14 @@ function loadGameState() {
         try {
             const parsed = JSON.parse(saved);
             // Deep copy variables
-            gameState.gameMode = parsed.gameMode || 90;
             gameState.drawnBalls = parsed.drawnBalls || [];
+            
+            // Default to 75 balls if no game is in progress
+            if (gameState.drawnBalls.length === 0) {
+                gameState.gameMode = 75;
+            } else {
+                gameState.gameMode = parsed.gameMode || 75;
+            }
             gameState.autoSpeed = parsed.autoSpeed || 4;
             gameState.sfxEnabled = parsed.sfxEnabled !== undefined ? parsed.sfxEnabled : true;
             gameState.ttsEnabled = parsed.ttsEnabled !== undefined ? parsed.ttsEnabled : true;
@@ -432,22 +438,20 @@ function renderBoard() {
     } else {
         grid.className = 'board-grid grid-75';
         
-        // 75-Ball: Header Row (B I N G O)
-        const headerRow = document.createElement('div');
-        headerRow.className = 'board-column-header-row';
-        ['B','I','N','G','O'].forEach(letter => {
-            const hdr = document.createElement('div');
-            hdr.className = 'board-col-hdr';
-            hdr.textContent = letter;
-            headerRow.appendChild(hdr);
-        });
-        grid.appendChild(headerRow);
-        
-        // Columns structure: 15 rows, 5 items per row
-        // Row 0: 1 (B), 16 (I), 31 (N), 46 (G), 61 (O)
-        for (let row = 0; row < 15; row++) {
-            for (let col = 0; col < 5; col++) {
-                const num = (col * 15) + row + 1;
+        const letters = ['B', 'I', 'N', 'G', 'O'];
+        for (let i = 0; i < 5; i++) {
+            const letter = letters[i];
+            
+            // Letter Header cell
+            const hdrCell = document.createElement('div');
+            hdrCell.className = 'board-cell board-col-hdr';
+            hdrCell.textContent = letter;
+            grid.appendChild(hdrCell);
+            
+            // 15 Number cells belonging to this letter
+            const startNum = (i * 15) + 1;
+            const endNum = startNum + 14;
+            for (let num = startNum; num <= endNum; num++) {
                 const cell = document.createElement('div');
                 cell.className = 'board-cell';
                 cell.textContent = num;

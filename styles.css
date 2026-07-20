@@ -171,21 +171,46 @@ body {
 }
 
 @media (min-width: 1024px) {
-    .main-grid {
-        height: calc(100vh - 270px);
-        min-height: 420px;
+    body {
+        height: 100vh;
+        overflow: hidden;
+        padding: 1.5vh 20px;
     }
+    
+    body:has(.printable-cards-area:not(:empty)) {
+        height: auto;
+        overflow-y: auto;
+    }
+
+    .app-container {
+        height: 100%;
+        max-width: 100%;
+    }
+    
+    .app-container:has(.printable-cards-area:not(:empty)) {
+        height: auto;
+        min-height: 100%;
+    }
+
+    .main-grid {
+        display: grid;
+        grid-template-columns: minmax(260px, 1.1fr) minmax(260px, 1fr) minmax(360px, 2fr);
+        gap: 15px;
+        height: calc(100vh - 320px);
+        min-height: 460px;
+    }
+    
+    body:not(:has(.printable-cards-area:not(:empty))) .main-grid {
+        height: auto;
+        flex-grow: 1;
+        min-height: 0;
+    }
+
     .visual-panel, .display-panel, .board-panel {
         display: flex;
         flex-direction: column;
         height: 100%;
         min-height: 0;
-    }
-}
-
-@media (max-width: 1200px) and (min-width: 1024px) {
-    .main-grid {
-        grid-template-columns: 300px 300px 1fr;
     }
 }
 
@@ -622,7 +647,7 @@ body {
 }
 
 .grid-75 {
-    grid-template-columns: repeat(15, 1fr);
+    grid-template-columns: repeat(16, 1fr);
 }
 
 .board-cell {
@@ -681,6 +706,15 @@ body {
     color: var(--brand-yellow);
     padding: 6px 0;
     letter-spacing: 0.1em;
+}
+
+.board-cell.board-col-hdr {
+    cursor: default;
+    pointer-events: none;
+    background: rgba(10, 34, 64, 0.7);
+    border-color: rgba(250, 204, 21, 0.3);
+    color: var(--brand-yellow);
+    font-size: 1.2rem;
 }
 
 /* Footer / Settings Section */
@@ -1162,7 +1196,7 @@ input:checked + .switch-slider:before {
 
 @media (max-width: 500px) {
     .grid-75 {
-        min-width: 460px;
+        min-width: 480px;
     }
 }
 
@@ -1191,4 +1225,29 @@ input:checked + .switch-slider:before {
         border-radius: 4px;
         padding: 4px 0;
     }
+}
+
+/* Rights Reserved Footer Styling */
+.app-rights {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--secondary);
+    margin: 10px 0 20px;
+    opacity: 0.85;
+}
+
+.app-rights p {
+    font-family: var(--font-primary);
+}
+
+.app-rights a {
+    color: var(--brand-yellow);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.app-rights a:hover {
+    color: var(--brand-orange);
+    text-decoration: underline;
 }
