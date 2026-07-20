@@ -529,12 +529,13 @@ function renderHistory() {
         const ball = document.createElement('div');
         ball.className = `history-ball ${getBallColorClass(num)}`;
         
-        let label = num;
         if (gameState.gameMode === 75) {
-            label = `${getBallLetter75(num)}-${num}`;
+            const letter = getBallLetter75(num);
+            ball.innerHTML = `<span class="hist-letter">${letter}</span><span class="hist-number">${num}</span>`;
+        } else {
+            ball.innerHTML = `<span class="hist-number-single">${num}</span>`;
         }
         
-        ball.textContent = label;
         list.appendChild(ball);
     });
 }
