@@ -646,7 +646,7 @@ function renderBigBall() {
     
     if (gameState.drawnBalls.length === 0) {
         container.className = 'big-ball-container-empty';
-        value.textContent = '--';
+        value.innerHTML = '<span class="big-ball-number-single">--</span>';
         subtext.textContent = 'Esperando sorteo...';
         return;
     }
@@ -657,7 +657,7 @@ function renderBigBall() {
     if (drawnBallTarget) {
         // Animating extraction
         container.className = 'big-ball-container-empty';
-        value.textContent = '??';
+        value.innerHTML = '<span class="big-ball-number-single">??</span>';
         subtext.textContent = 'GIRANDO TÓMBOLA...';
         return;
     }
@@ -667,10 +667,10 @@ function renderBigBall() {
     
     if (gameState.gameMode === 75) {
         const letter = getBallLetter75(num);
-        value.innerHTML = `<span style="font-size: 3rem; display: block; line-height: 1; margin-bottom:-5px; color:rgba(255,255,255,0.7);">${letter}</span>${num}`;
+        value.innerHTML = `<span class="big-ball-letter">${letter}</span><span class="big-ball-number">${num}</span>`;
         subtext.textContent = `BOLA EXTRAÍDA: ${letter}-${num}`;
     } else {
-        value.textContent = num;
+        value.innerHTML = `<span class="big-ball-number-single">${num}</span>`;
         subtext.textContent = `BOLA EXTRAÍDA: NÚMERO ${num}`;
     }
 }
@@ -908,262 +908,7 @@ function closeAlertModal() {
     document.getElementById('alert-modal').classList.remove('active');
 }
 
-// ==========================================
-// BINGO CARD GENERATOR LOGIC
-// ==========================================
 
-function generateBingoCards() {
-    initAudio();
-    playClickSFX();
-    
-    const qtyInput = document.getElementById('card-qty');
-    let qty = parseInt(qtyInput.value) || 2;
-    if (qty < 1) qty = 1;
-    if (qty > 100) qty = 100; // safety ceiling
-    
-    const area = document.getElementById('printable-cards-area');
-    area.innerHTML = '';
-    
-    for (let i = 1; i <= qty; i++) {
-        const cardNode = (gameState.gameMode === 90) ? create90BallCard(i) : create75BallCard(i);
-        area.appendChild(cardNode);
-    }
-    
-    document.getElementById('btn-print-cards').disabled = false;
-    
-    // Close the configuration modal since cards have been generated
-    closeConfigModal();
-    
-    // Scroll down to cards section on screen so users know they were generated
-    area.scrollIntoView({ behavior: 'smooth' });
-}
-
-function clearBingoCards() {
-    initAudio();
-    playClickSFX();
-    document.getElementById('printable-cards-area').innerHTML = '';
-    document.getElementById('btn-print-cards').disabled = true;
-}
-
-// Math logic to generate valid 75-ball (5x5 grid with FREE space)
-function create75BallCard(id) {
-    const card = document.createElement('div');
-    card.className = 'bingo-card';
-    
-    // Card Header
-    const head = document.createElement('div');
-    head.className = 'card-header';
-    head.innerHTML = `
-        <div class="card-title">EL BINGOTE! (75)</div>
-        <div class="card-id">Cartón #${id}</div>
-    `;
-    card.appendChild(head);
-    
-    // Card Grid
-    const grid = document.createElement('div');
-    grid.className = 'card-grid-75';
-    
-    // Grid Headers (B I N G O)
-    ['B','I','N','G','O'].forEach(l => {
-        const cell = document.createElement('div');
-        cell.className = 'card-hdr-cell';
-        cell.textContent = l;
-        grid.appendChild(cell);
-    });
-    
-    // Columns logic: choose 5 random sorted non-repeating numbers in their ranges
-    const columns = [];
-    for (let c = 0; colRange = [ {min:1, max:15}, {min:16, max:30}, {min:31, max:45}, {min:46, max:60}, {min:61, max:75} ][c], c < 5; c++) {
-        const pool = [];
-        for (let v = colRange.min; v <= colRange.max; v++) pool.push(v);
-        
-        // Select 5 random numbers
-        const colNums = [];
-        for (let r = 0; r < 5; r++) {
-            const idx = Math.floor(Math.random() * pool.length);
-            colNums.push(pool.splice(idx, 1)[0]);
-        }
-        colNums.sort((a,b) => a-b);
-        columns.push(colNums);
-    }
-    
-    // Fill 5x5 grid row by row
-    for (let row = 0; row < 5; row++) {
-        for (let col = 0; col < 5; col++) {
-            const cell = document.createElement('div');
-            
-            // Check for center FREE space (row 2, col 2)
-            if (row === 2 && col === 2) {
-                cell.className = 'card-num-cell free-space';
-                cell.textContent = 'LIBRE';
-            } else {
-                cell.className = 'card-num-cell';
-                cell.textContent = columns[col][row];
-            }
-            grid.appendChild(cell);
-        }
-    }
-    
-    card.appendChild(grid);
-    return card;
-}
-
-// Math logic to generate valid 90-ball card (3 rows x 9 columns)
-function create90BallCard(id) {
-    const card = document.createElement('div');
-    card.className = 'bingo-card';
-    
-    // Card Header
-    const head = document.createElement('div');
-    head.className = 'card-header';
-    head.innerHTML = `
-        <div class="card-title">EL BINGOTE! (90)</div>
-        <div class="card-id">Cartón #${id}</div>
-    `;
-    card.appendChild(head);
-    
-    // Generate valid numbers grid
-    const gridData = make90BallCardData();
-    
-    // Card Grid Layout
-    const grid = document.createElement('div');
-    grid.className = 'card-grid-90';
-    
-    for (let row = 0; row < 3; row++) {
-        for (let col = 0; col < 9; col++) {
-            const cell = document.createElement('div');
-            const val = gridData[row][col];
-            if (val === null) {
-                cell.className = 'card-num-cell empty-cell';
-                cell.textContent = '';
-            } else {
-                cell.className = 'card-num-cell';
-                cell.textContent = val;
-            }
-            grid.appendChild(cell);
-        }
-    }
-    
-    card.appendChild(grid);
-    return card;
-}
-
-// Complex mathematics to get a true 90-ball ticket
-// 3 rows, 9 columns. Exactly 15 numbers total. Exactly 5 numbers per row.
-// Columns: 0 (1-9), 1 (10-19), ..., 8 (80-90).
-// Each column has at least 1 number, and at most 3 numbers.
-function make90BallCardData() {
-    let grid = Array(3).fill(null).map(() => Array(9).fill(null));
-    let attempts = 0;
-    
-    while (attempts < 500) {
-        attempts++;
-        grid = Array(3).fill(null).map(() => Array(9).fill(null));
-        
-        // 1. Generate columns pools
-        const colPools = [];
-        for (let c = 0; c < 9; c++) {
-            const min = c === 0 ? 1 : c * 10;
-            const max = c === 8 ? 90 : c * 10 + 9;
-            const pool = [];
-            for (let v = min; v <= max; v++) pool.push(v);
-            colPools.push(pool);
-        }
-        
-        // 2. Decide how many numbers per column (sum = 15)
-        // Initialize all columns with at least 1 number
-        const colCounts = Array(9).fill(1);
-        let remaining = 6;
-        
-        // Distribute extra numbers, making sure no column exceeds 2 (or occasionally 3, standard is max 3, usually 2 or 1)
-        while (remaining > 0) {
-            const col = Math.floor(Math.random() * 9);
-            if (colCounts[col] < 2.5) { // max 2 is easier for row balancing, but 3 is allowed. Let's limit to 2 or 3
-                colCounts[col]++;
-                remaining--;
-            }
-        }
-        
-        // 3. For each column, extract sorted numbers
-        const colNumbers = [];
-        for (let c = 0; c < 9; c++) {
-            const pool = [...colPools[c]];
-            const nums = [];
-            for (let i = 0; i < colCounts[c]; i++) {
-                const idx = Math.floor(Math.random() * pool.length);
-                nums.push(pool.splice(idx, 1)[0]);
-            }
-            nums.sort((a,b) => a-b);
-            colNumbers.push(nums);
-        }
-        
-        // 4. Distribute numbers into rows
-        // We must place columns numbers into rows (3 rows) such that:
-        // - Each row has exactly 5 numbers.
-        // - Numbers in columns are sorted down the rows (row 0 < row 1 < row 2, if they share a column).
-        // Let's do this by backtracking or retry.
-        
-        let success = true;
-        // Keep track of count of numbers in each row
-        const rowCounts = [0, 0, 0];
-        
-        // We will assign columns one by one
-        for (let c = 0; c < 9; c++) {
-            const count = colCounts[c];
-            const nums = colNumbers[c];
-            
-            if (count === 1) {
-                // Pick a row that has < 5 elements
-                const eligibleRows = [0, 1, 2].filter(r => rowCounts[r] < 5);
-                if (eligibleRows.length === 0) { success = false; break; }
-                const row = eligibleRows[Math.floor(Math.random() * eligibleRows.length)];
-                grid[row][c] = nums[0];
-                rowCounts[row]++;
-            } 
-            else if (count === 2) {
-                // Pick 2 rows that have < 5 elements, maintaining sorted order (r1 < r2)
-                const eligibleCombos = [
-                    [0, 1], [0, 2], [1, 2]
-                ].filter(([r1, r2]) => rowCounts[r1] < 5 && rowCounts[r2] < 5);
-                
-                if (eligibleCombos.length === 0) { success = false; break; }
-                
-                const [r1, r2] = eligibleCombos[Math.floor(Math.random() * eligibleCombos.length)];
-                grid[r1][c] = nums[0];
-                grid[r2][c] = nums[1];
-                rowCounts[r1]++;
-                rowCounts[r2]++;
-            } 
-            else if (count === 3) {
-                // Must place in all 3 rows
-                if (rowCounts[0] >= 5 || rowCounts[1] >= 5 || rowCounts[2] >= 5) { success = false; break; }
-                grid[0][c] = nums[0];
-                grid[1][c] = nums[1];
-                grid[2][c] = nums[2];
-                rowCounts[0]++;
-                rowCounts[1]++;
-                rowCounts[2]++;
-            }
-        }
-        
-        // Double check: if all rows have exactly 5 numbers, we succeed!
-        if (success && rowCounts[0] === 5 && rowCounts[1] === 5 && rowCounts[2] === 5) {
-            return grid;
-        }
-    }
-    
-    // Backup fallback in case of algorithm timeout (extremely rare, but guarantees UI stability)
-    return getFallback90CardGrid();
-}
-
-// Fallback card structure in case of algorithm loop safety
-function getFallback90CardGrid() {
-    return [
-        [5,  null, 22,   null, 40,   55,   null, 71,   82],
-        [null, 12,   null, 34,   46,   null, 63,   78,   89],
-        [8,    19,   28,   37,   null, null, 68,   null, null]
-    ];
-}
 
 // ==========================================
 // CANVAS GRAPHICS & BALL PHYSICS SIMULATOR

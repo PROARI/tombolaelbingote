@@ -273,7 +273,7 @@ function renderBigBallSpinner() {
     if (!container || !value || !subtext) return;
     
     container.className = 'big-ball-container-empty';
-    value.textContent = '??';
+    value.innerHTML = '<span class="big-ball-number-single">??</span>';
     subtext.textContent = 'GIRANDO TÓMBOLA...';
 }
 
@@ -651,7 +651,7 @@ function renderBigBall() {
     
     if (gameState.drawnBalls.length === 0) {
         container.className = 'big-ball-container-empty';
-        value.textContent = '--';
+        value.innerHTML = '<span class="big-ball-number-single">--</span>';
         subtext.textContent = 'Esperando sorteo...';
         return;
     }
@@ -660,7 +660,7 @@ function renderBigBall() {
     
     if (drawnBallTarget) {
         container.className = 'big-ball-container-empty';
-        value.textContent = '??';
+        value.innerHTML = '<span class="big-ball-number-single">??</span>';
         subtext.textContent = 'GIRANDO TÓMBOLA...';
         return;
     }
@@ -669,10 +669,10 @@ function renderBigBall() {
     
     if (gameState.gameMode === 75) {
         const letter = getBallLetter75(num);
-        value.innerHTML = `<span style="font-size: 3rem; display: block; line-height: 1; margin-bottom:-5px; color:rgba(255,255,255,0.7);">${letter}</span>${num}`;
+        value.innerHTML = `<span class="big-ball-letter">${letter}</span><span class="big-ball-number">${num}</span>`;
         subtext.textContent = `BOLA EXTRAÍDA: ${letter}-${num}`;
     } else {
-        value.textContent = num;
+        value.innerHTML = `<span class="big-ball-number-single">${num}</span>`;
         subtext.textContent = `BOLA EXTRAÍDA: NÚMERO ${num}`;
     }
 }

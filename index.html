@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>El Bingote! - Tómbola y Bolillero Virtual</title>
-    <meta name="description" content="Tómbola y bolillero virtual profesional para jugar al bingo tradicional de 75 y 90 bolas. Interfaz interactiva con sonido, voz y generador de cartones.">
+    <meta name="description" content="Tómbola y bolillero virtual profesional para jugar al bingo tradicional de 75 y 90 bolas. Interfaz interactiva con sonido y voz.">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,7 @@
         <!-- Header -->
         <header class="app-header">
             <div class="logo-container">
-                <img src="logo.jpg" alt="El Bingote!" class="app-logo" id="logo-img" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='block';">
+                <img src="logo.png" alt="El Bingote!" class="app-logo" id="logo-img" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='block';">
                 <div class="logo-fallback" id="logo-fallback" style="display: none;">El Bingote!</div>
             </div>
             <div class="header-controls">
@@ -85,7 +85,7 @@
                 <div class="big-ball-viewport">
                     <div id="big-ball-container" class="big-ball-container-empty">
                         <div class="big-ball-reflection"></div>
-                        <div id="big-ball-value" class="big-ball-value">--</div>
+                        <div id="big-ball-value" class="big-ball-value"><span class="big-ball-number-single">--</span></div>
                     </div>
                     <div id="big-ball-subtext" class="big-ball-subtext">Esperando sorteo...</div>
                 </div>
@@ -143,10 +143,6 @@
             <p>Derechos Reservados: <a href="https://elbingote.com" target="_blank">elbingote.com</a> by Proari Systems</p>
         </div>
 
-        <!-- Section for printable cards (hidden on screen by default, visible in print) -->
-        <section id="printable-cards-area" class="printable-cards-area">
-            <!-- Cards will be generated here -->
-        </section>
 
     </div>
 
@@ -178,7 +174,7 @@
     <div id="config-modal" class="modal-overlay">
         <div class="modal-content glass-panel config-modal-content">
             <div class="modal-header-container">
-                <h2>⚙️ Configuración y Cartones</h2>
+                <h2>⚙️ Configuración</h2>
                 <button class="btn-close" onclick="closeConfigModal()">&times;</button>
             </div>
             
@@ -222,30 +218,8 @@
                     </div>
                 </div>
 
-                <!-- Bingo Card Generator Panel -->
-                <div class="card-generator-block-modal">
-                    <h3>GENERADOR DE CARTONES</h3>
-                    <div class="generator-controls-modal">
-                        <div class="quantity-input-group">
-                            <label for="card-qty">Cantidad:</label>
-                            <input type="number" id="card-qty" min="1" max="50" value="2">
-                        </div>
-                        <div class="generator-actions-modal">
-                            <button id="btn-generate-cards" class="btn-action btn-accent" onclick="generateBingoCards()">
-                                Generar Cartones
-                            </button>
-                            <button id="btn-clear-cards" class="btn-action btn-secondary" onclick="clearBingoCards()">
-                                Limpiar
-                            </button>
-                            <button id="btn-print-cards" class="btn-action btn-print" onclick="window.print()" disabled>
-                                🖨️ Imprimir
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Real-time Synchronization Panel -->
-                <div class="settings-block-modal col-span-2 sync-section-modal">
+                <div class="settings-block-modal sync-section-modal">
                     <h3>TRANSMISIÓN EN TIEMPO REAL</h3>
                     <p class="setting-text-desc">
                         Permite que cualquier persona en el mundo vea el sorteo en tiempo real abriendo la pantalla de transmisión en su navegador.
