@@ -889,26 +889,43 @@ body {
     font-size: clamp(0.7rem, 1.5vw + 0.3rem, 1.2rem);
 }
 
-/* Footer / Settings Section */
+/* Footer / Reset Button Section */
 .app-footer {
-    padding: min(15px, 1.8vh) 20px;
+    padding: 6px 15px;
+    margin-top: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 .footer-layout {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 30px;
-    flex-wrap: wrap;
+    width: 100%;
 }
 
 .footer-layout .btn-action {
-    min-width: 240px;
-    padding: 14px 28px;
-    font-size: 1rem;
+    width: auto;
+    min-width: 140px;
+    max-width: 190px;
+    padding: 6px 14px;
+    font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
-    border-radius: 12px;
+    letter-spacing: 0.04em;
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+    opacity: 0.9;
+    transition: all 0.2s ease;
+}
+
+.footer-layout .btn-action:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.45);
 }
 
 .settings-block h3, .card-generator-block h3 {
@@ -1511,9 +1528,9 @@ input:checked + .switch-slider:before {
 /* Rights Reserved Footer Styling */
 .app-rights {
     text-align: center;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     color: var(--secondary);
-    margin: 10px 0 20px;
+    margin: 4px 0 8px;
     opacity: 0.85;
 }
 
