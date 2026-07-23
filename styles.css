@@ -636,6 +636,14 @@ body {
     width: 100%;
 }
 
+/* Color overrides for white ball text in big ball */
+.big-ball-container-active.ball-color-n .big-ball-letter,
+.big-ball-container-active.ball-color-n .big-ball-number,
+.big-ball-container-active.ball-color-n .big-ball-number-single {
+    color: #000000;
+    text-shadow: none;
+}
+
 .big-ball-subtext {
     margin-top: min(10px, 1.2vh);
     font-size: 0.8rem;
