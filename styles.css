@@ -1178,6 +1178,7 @@ input:checked + .switch-slider:before {
 .config-modal-content {
     max-width: 650px;
     width: 95%;
+    max-height: 90vh;
     padding: 30px;
     text-align: left;
     display: flex;
@@ -1219,6 +1220,8 @@ input:checked + .switch-slider:before {
     display: flex;
     flex-direction: column;
     gap: 25px;
+    overflow-y: auto;
+    padding-right: 5px;
 }
 
 .settings-block-modal, .card-generator-block-modal {
@@ -1671,3 +1674,269 @@ input:checked + .switch-slider:before {
     margin-top: 5px;
     opacity: 0.7;
 }
+
+/* Screen Lock Overlay */
+.lock-overlay-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at center, #0f1c3f 0%, #04070f 100%);
+    z-index: 99999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    backdrop-filter: blur(20px);
+}
+
+.lock-card {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 40px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(250, 204, 21, 0.15);
+    text-align: center;
+    animation: fadeInLock 0.5s ease-out;
+}
+
+@keyframes fadeInLock {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.lock-logo-placeholder {
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin-bottom: 5px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--brand-yellow) 50%, var(--brand-orange) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 1px;
+}
+
+.lock-subtitle {
+    font-size: 0.9rem;
+    color: var(--secondary);
+    margin-bottom: 25px;
+}
+
+.lock-tabs {
+    display: flex;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 25px;
+}
+
+.lock-tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--secondary);
+    font-family: var(--font-primary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.lock-tab-btn.active {
+    background: var(--brand-orange);
+    color: white;
+    box-shadow: 0 2px 8px rgba(255, 69, 0, 0.4);
+}
+
+.lock-form {
+    display: none;
+    flex-direction: column;
+    gap: 15px;
+    text-align: left;
+}
+
+.lock-form.active {
+    display: flex;
+}
+
+.lock-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.lock-form-group label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--secondary);
+}
+
+.lock-input {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--primary);
+    padding: 12px 15px;
+    font-size: 0.95rem;
+    outline: none;
+    font-family: var(--font-primary);
+    transition: all 0.3s ease;
+}
+
+.lock-input:focus {
+    border-color: var(--brand-yellow);
+    box-shadow: 0 0 8px rgba(250, 204, 21, 0.2);
+}
+
+.lock-error {
+    color: var(--accent-red);
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-top: 5px;
+    display: none;
+}
+
+.lock-btn {
+    background: linear-gradient(135deg, var(--brand-orange) 0%, #d84315 100%);
+    border: none;
+    color: white;
+    padding: 14px;
+    border-radius: 8px;
+    font-family: var(--font-primary);
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(255, 69, 0, 0.3);
+    text-align: center;
+}
+
+.lock-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(255, 69, 0, 0.4);
+}
+
+.lock-btn:active {
+    transform: translateY(0);
+}
+
+/* Link Generator block in Config Modal */
+.config-block-access {
+    border-top: 1px dashed rgba(255, 255, 255, 0.15);
+    padding-top: 20px;
+    margin-top: 20px;
+}
+
+.config-block-access h3 {
+    margin-bottom: 10px;
+    color: var(--brand-yellow);
+    font-size: 0.95rem;
+}
+
+.access-generator-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.access-duration-select {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--primary);
+    padding: 10px 15px;
+    font-size: 0.9rem;
+    outline: none;
+    font-family: var(--font-primary);
+    cursor: pointer;
+}
+
+.access-duration-select option {
+    background: var(--bg-darker);
+    color: var(--primary);
+}
+
+.access-buttons-row {
+    display: flex;
+    gap: 10px;
+}
+
+.access-buttons-row .btn-action {
+    flex: 1;
+}
+
+.btn-admin-logout {
+    margin-top: 10px;
+    width: 100%;
+}
+
+/* Responsividad para el Panel de Configuración */
+@media (max-width: 600px) {
+    .config-modal-content {
+        padding: 20px 15px;
+        gap: 15px;
+        width: 98%;
+        max-height: 95vh;
+    }
+    
+    .modal-header-container {
+        padding-bottom: 10px;
+        margin-bottom: 0;
+    }
+    
+    .settings-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px;
+    }
+    
+    .col-span-2 {
+        grid-column: span 1 !important;
+    }
+    
+    .sync-controls-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .sync-controls-wrapper #btn-open-viewer {
+        width: 100%;
+        min-width: 0;
+    }
+    
+    .share-link-group {
+        min-width: 0;
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .share-link-group input.sync-url-input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .share-link-group button {
+        width: 100% !important;
+    }
+    
+    .access-generator-wrapper {
+        gap: 10px;
+    }
+    
+    .access-buttons-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .access-buttons-row .btn-action {
+        width: 100%;
+    }
+}
+

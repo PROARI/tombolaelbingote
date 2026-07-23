@@ -13,6 +13,39 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Screen Lock Overlay -->
+    <div id="lock-screen-overlay" class="lock-overlay-fullscreen" style="display: none;">
+        <div class="lock-card">
+            <div class="lock-logo-placeholder">El Bingote!</div>
+            <div class="lock-subtitle">Sistema Tómbola y Bolillero Virtual</div>
+            
+            <div class="lock-tabs">
+                <button id="tab-btn-guest" class="lock-tab-btn active" onclick="switchLockTab('guest')">Acceso Temporal</button>
+                <button id="tab-btn-admin" class="lock-tab-btn" onclick="switchLockTab('admin')">Administrador</button>
+            </div>
+            
+            <!-- Guest Form -->
+            <div id="form-lock-guest" class="lock-form active">
+                <div class="lock-form-group">
+                    <label for="lock-guest-token">Enlace o Código de Acceso:</label>
+                    <input type="text" id="lock-guest-token" class="lock-input" placeholder="Pegue su enlace o código de acceso temporal">
+                </div>
+                <div id="lock-guest-error" class="lock-error">Código de acceso no válido o vencido.</div>
+                <button class="lock-btn" onclick="submitGuestAccess()">Desbloquear Sistema</button>
+            </div>
+            
+            <!-- Admin Form -->
+            <div id="form-lock-admin" class="lock-form">
+                <div class="lock-form-group">
+                    <label for="lock-admin-key">Contraseña de Administrador:</label>
+                    <input type="password" id="lock-admin-key" class="lock-input" placeholder="Ingrese clave maestra de administración">
+                </div>
+                <div id="lock-admin-error" class="lock-error">Contraseña incorrecta.</div>
+                <button class="lock-btn" onclick="submitAdminAccess()">Ingresar como Admin</button>
+            </div>
+        </div>
+    </div>
+
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
@@ -238,6 +271,41 @@
                     <p class="sync-help-note" id="sync-help-text">
                        
                     </p>
+                </div>
+
+                <!-- Access and Licenses Configuration Panel (Admin Only) -->
+                <div class="settings-block-modal config-block-access" id="admin-access-section" style="display: none;">
+                    <h3>🔑 CONTROL DE ACCESO (ADMINISTRADOR)</h3>
+                    <p class="setting-text-desc">
+                        Genera un enlace de acceso temporal que permita a otros usar la plataforma de forma temporal por el tiempo configurado.
+                    </p>
+                    <div class="access-generator-wrapper">
+                        <div class="setting-item col-span-2 voice-selector-container" style="display: flex; flex-direction: column; gap: 8px;">
+                            <label for="access-duration" class="voice-select-label" style="font-weight: 600;">Duración del Enlace:</label>
+                            <select id="access-duration" class="access-duration-select">
+                                <option value="24">24 Horas</option>
+                                <option value="48">48 Horas</option>
+                                <option value="72">72 Horas</option>
+                            </select>
+                        </div>
+                        
+                        <div class="share-link-group">
+                            <input type="text" id="access-share-url" readonly class="sync-url-input" placeholder="El enlace generado se mostrará aquí...">
+                            <button id="btn-copy-access" class="btn-action btn-secondary" onclick="copyAccessLink()">
+                                📋 Copiar Enlace
+                            </button>
+                        </div>
+                        
+                        <div class="access-buttons-row">
+                            <button id="btn-generate-access" class="btn-action btn-accent" onclick="generateTemporaryLink()">
+                                ✨ Generar Enlace Temporal
+                            </button>
+                        </div>
+                        
+                        <button class="btn-action btn-danger btn-admin-logout" onclick="logoutAdmin()">
+                            🔒 Cerrar Sesión Administrador
+                        </button>
+                    </div>
                 </div>
             </div>
 

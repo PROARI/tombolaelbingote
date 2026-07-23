@@ -37,7 +37,210 @@ window.addEventListener('DOMContentLoaded', () => {
     initApp();
 });
 
+// ==========================================
+// ACCESS CONTROL & TEMPORARY LICENSING
+// ==========================================
+const ACCESS_SECRET = 'ElBingoteSecretKey2026!';
+const MASTER_KEY = '4206371Luis*';
+
+function generateSignature(timestamp, secret) {
+    const message = timestamp + "|" + secret;
+    let hash = 0;
+    for (let i = 0; i < message.length; i++) {
+        const char = message.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash).toString(16);
+}
+
+function validateToken(token) {
+    if (!token) return false;
+    try {
+        const decoded = atob(token);
+        const parts = decoded.split('.');
+        if (parts.length !== 2) return false;
+        const expiry = parseInt(parts[0]);
+        const sig = parts[1];
+        if (isNaN(expiry)) return false;
+        if (expiry <= Date.now()) return false;
+        return generateSignature(expiry, ACCESS_SECRET) === sig;
+    } catch (e) {
+        return false;
+    }
+}
+
+function checkAccess() {
+    const params = new URLSearchParams(window.location.search);
+    const urlAccess = params.get('access');
+    
+    if (urlAccess) {
+        if (urlAccess === MASTER_KEY) {
+            localStorage.setItem('el_bingote_admin', 'true');
+            localStorage.removeItem('el_bingote_token'); // Clear guest token if logging in as admin
+            params.delete('access');
+            const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
+            history.replaceState({}, '', newUrl);
+            return true;
+        } else if (validateToken(urlAccess)) {
+            localStorage.setItem('el_bingote_token', urlAccess);
+            localStorage.removeItem('el_bingote_admin'); // Clear admin status if guest access is used
+            params.delete('access');
+            const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
+            history.replaceState({}, '', newUrl);
+            return true;
+        }
+    }
+    
+    if (localStorage.getItem('el_bingote_admin') === 'true') {
+        return true;
+    }
+    
+    const savedToken = localStorage.getItem('el_bingote_token');
+    if (validateToken(savedToken)) {
+        return true;
+    }
+    
+    return false;
+}
+
+function showLockScreen() {
+    const overlay = document.getElementById('lock-screen-overlay');
+    if (overlay) overlay.style.display = 'flex';
+}
+
+function hideLockScreen() {
+    const overlay = document.getElementById('lock-screen-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function switchLockTab(tab) {
+    const btnGuest = document.getElementById('tab-btn-guest');
+    const btnAdmin = document.getElementById('tab-btn-admin');
+    const formGuest = document.getElementById('form-lock-guest');
+    const formAdmin = document.getElementById('form-lock-admin');
+    
+    if (!btnGuest || !btnAdmin || !formGuest || !formAdmin) return;
+    
+    if (tab === 'guest') {
+        btnGuest.classList.add('active');
+        btnAdmin.classList.remove('active');
+        formGuest.classList.add('active');
+        formAdmin.classList.remove('active');
+    } else {
+        btnAdmin.classList.add('active');
+        btnGuest.classList.remove('active');
+        formAdmin.classList.add('active');
+        formGuest.classList.remove('active');
+    }
+}
+
+function submitGuestAccess() {
+    const tokenInput = document.getElementById('lock-guest-token');
+    const errorEl = document.getElementById('lock-guest-error');
+    if (!tokenInput || !errorEl) return;
+    
+    let val = tokenInput.value.trim();
+    if (val.includes('access=')) {
+        try {
+            const url = new URL(val);
+            val = url.searchParams.get('access') || val;
+        } catch (e) {
+            const match = val.match(/access=([^&]+)/);
+            if (match) val = match[1];
+        }
+    }
+    
+    if (validateToken(val)) {
+        errorEl.style.display = 'none';
+        localStorage.setItem('el_bingote_token', val);
+        localStorage.removeItem('el_bingote_admin'); // Clear admin status if guest access is used
+        hideLockScreen();
+        startPlatform();
+    } else {
+        errorEl.style.display = 'block';
+    }
+}
+
+function submitAdminAccess() {
+    const keyInput = document.getElementById('lock-admin-key');
+    const errorEl = document.getElementById('lock-admin-error');
+    if (!keyInput || !errorEl) return;
+    
+    const val = keyInput.value.trim();
+    if (val === MASTER_KEY) {
+        errorEl.style.display = 'none';
+        localStorage.setItem('el_bingote_admin', 'true');
+        hideLockScreen();
+        startPlatform();
+    } else {
+        errorEl.style.display = 'block';
+    }
+}
+
+function logoutAdmin() {
+    localStorage.removeItem('el_bingote_admin');
+    localStorage.removeItem('el_bingote_token');
+    window.location.reload();
+}
+
+function generateTemporaryLink() {
+    const durationSelect = document.getElementById('access-duration');
+    const shareInput = document.getElementById('access-share-url');
+    if (!durationSelect || !shareInput) return;
+    
+    const hours = parseInt(durationSelect.value);
+    const expiry = Date.now() + hours * 3600000;
+    const sig = generateSignature(expiry, ACCESS_SECRET);
+    const token = btoa(expiry + "." + sig);
+    
+    let baseUrl = window.location.href.split('?')[0].split('#')[0];
+    if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl + 'index.html';
+    }
+    const generatedUrl = baseUrl + '?access=' + token;
+    shareInput.value = generatedUrl;
+}
+
+function copyAccessLink() {
+    const input = document.getElementById('access-share-url');
+    if (input && input.value) {
+        input.select();
+        input.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(input.value)
+            .then(() => {
+                const btn = document.getElementById('btn-copy-access');
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copiado';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            })
+            .catch(err => {
+                console.error("Error al copiar enlace: ", err);
+            });
+    }
+}
+
 function initApp() {
+    // Add confirmation modal key listeners (runs always)
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeConfirmModal();
+            closeAlertModal();
+            closeConfigModal();
+        }
+    });
+
+    if (!checkAccess()) {
+        showLockScreen();
+        return;
+    }
+    
+    startPlatform();
+}
+
+function startPlatform() {
     canvas = document.getElementById('drum-canvas');
     ctx = canvas.getContext('2d');
 
@@ -65,17 +268,20 @@ function initApp() {
     initSimulationBalls();
     startSimulation();
 
-    // Add confirmation modal key listeners
-    window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closeConfirmModal();
-            closeAlertModal();
-            closeConfigModal();
-        }
-    });
-
     // Initialize synchronization state for real-time viewer
     initSyncState();
+
+    // Show admin access section if logged in as admin and no valid guest token is present
+    const adminSec = document.getElementById('admin-access-section');
+    if (adminSec) {
+        const isAdmin = localStorage.getItem('el_bingote_admin') === 'true';
+        const hasValidToken = validateToken(localStorage.getItem('el_bingote_token'));
+        if (isAdmin && !hasValidToken) {
+            adminSec.style.display = 'block';
+        } else {
+            adminSec.style.display = 'none';
+        }
+    }
 }
 
 // ==========================================
@@ -157,7 +363,24 @@ function getViewerUrl() {
     } else {
         baseUrl = baseUrl + '/viewer.html';
     }
-    return baseUrl + '?game=' + gameState.syncCode;
+    
+    let url = baseUrl + '?game=' + gameState.syncCode;
+    
+    // Append temporary access token for the viewer
+    let token = localStorage.getItem('el_bingote_token');
+    const isAdmin = localStorage.getItem('el_bingote_admin') === 'true';
+    if (isAdmin && !token) {
+        // If we are admin but don't have a guest token in storage, generate a temporary 24h token for the viewer automatically
+        const expiry = Date.now() + 24 * 3600000;
+        const sig = generateSignature(expiry, ACCESS_SECRET);
+        token = btoa(expiry + "." + sig);
+    }
+    
+    if (token) {
+        url += '&access=' + token;
+    }
+    
+    return url;
 }
 
 function initSyncState() {

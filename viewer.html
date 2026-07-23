@@ -107,6 +107,23 @@
     </style>
 </head>
 <body>
+    <!-- Screen Lock Overlay -->
+    <div id="lock-screen-overlay" class="lock-overlay-fullscreen" style="display: none;">
+        <div class="lock-card">
+            <div class="lock-logo-placeholder">El Bingote!</div>
+            <div class="lock-subtitle">Pantalla de Transmisión - Acceso Restringido</div>
+            
+            <div class="lock-form active" style="margin-top: 15px;">
+                <div class="lock-form-group">
+                    <label for="lock-guest-token">Enlace o Código de Acceso:</label>
+                    <input type="text" id="lock-guest-token" class="lock-input" placeholder="Ingrese el código de acceso proporcionado por el administrador">
+                </div>
+                <div id="lock-guest-error" class="lock-error">Código de acceso no válido o expirado.</div>
+                <button class="lock-btn" onclick="submitGuestAccess()">Desbloquear Pantalla</button>
+            </div>
+        </div>
+    </div>
+
     <div class="viewer-container">
         <!-- Header -->
         <header class="app-header">

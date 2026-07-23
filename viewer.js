@@ -34,12 +34,132 @@ let currentUtterance = null;
 let syncCode = '';
 let eventSource = null;
 
+// ==========================================
+// ACCESS CONTROL & TEMPORARY LICENSING (VIEWER)
+// ==========================================
+const ACCESS_SECRET = 'ElBingoteSecretKey2026!';
+const MASTER_KEY = '4206371Luis*';
+
+function generateSignature(timestamp, secret) {
+    const message = timestamp + "|" + secret;
+    let hash = 0;
+    for (let i = 0; i < message.length; i++) {
+        const char = message.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash).toString(16);
+}
+
+function validateToken(token) {
+    if (!token) return false;
+    try {
+        const decoded = atob(token);
+        const parts = decoded.split('.');
+        if (parts.length !== 2) return false;
+        const expiry = parseInt(parts[0]);
+        const sig = parts[1];
+        if (isNaN(expiry)) return false;
+        if (expiry <= Date.now()) return false;
+        return generateSignature(expiry, ACCESS_SECRET) === sig;
+    } catch (e) {
+        return false;
+    }
+}
+
+function checkAccess() {
+    const params = new URLSearchParams(window.location.search);
+    const urlAccess = params.get('access');
+    
+    if (urlAccess) {
+        if (urlAccess === MASTER_KEY) {
+            localStorage.setItem('el_bingote_admin', 'true');
+            localStorage.removeItem('el_bingote_token'); // Clear guest token if logging in as admin
+            // Clean up access param from URL
+            params.delete('access');
+            const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
+            history.replaceState({}, '', newUrl);
+            return true;
+        } else if (validateToken(urlAccess)) {
+            localStorage.setItem('el_bingote_token', urlAccess);
+            localStorage.removeItem('el_bingote_admin'); // Clear admin status if guest access is used
+            // Clean up access param from URL
+            params.delete('access');
+            const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
+            history.replaceState({}, '', newUrl);
+            return true;
+        }
+    }
+    
+    if (localStorage.getItem('el_bingote_admin') === 'true') {
+        return true;
+    }
+    
+    const savedToken = localStorage.getItem('el_bingote_token');
+    if (validateToken(savedToken)) {
+        return true;
+    }
+    
+    return false;
+}
+
+function showLockScreen() {
+    const overlay = document.getElementById('lock-screen-overlay');
+    if (overlay) overlay.style.display = 'flex';
+}
+
+function hideLockScreen() {
+    const overlay = document.getElementById('lock-screen-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function submitGuestAccess() {
+    const tokenInput = document.getElementById('lock-guest-token');
+    const errorEl = document.getElementById('lock-guest-error');
+    if (!tokenInput || !errorEl) return;
+    
+    let val = tokenInput.value.trim();
+    if (val.includes('access=')) {
+        try {
+            const url = new URL(val);
+            val = url.searchParams.get('access') || val;
+        } catch (e) {
+            const match = val.match(/access=([^&]+)/);
+            if (match) val = match[1];
+        }
+    }
+    
+    if (validateToken(val) || val === MASTER_KEY) {
+        errorEl.style.display = 'none';
+        if (val === MASTER_KEY) {
+            localStorage.setItem('el_bingote_admin', 'true');
+            localStorage.removeItem('el_bingote_token'); // Clear guest token if logging in as admin
+        } else {
+            localStorage.setItem('el_bingote_token', val);
+            localStorage.removeItem('el_bingote_admin'); // Clear admin status if guest access is used
+        }
+        hideLockScreen();
+        startViewerPlatform();
+    } else {
+        errorEl.style.display = 'block';
+    }
+}
+
 // Initialize the Application on Load
 window.addEventListener('DOMContentLoaded', () => {
     initViewer();
 });
 
 async function initViewer() {
+    if (!checkAccess()) {
+        showLockScreen();
+        return;
+    }
+    
+    await startViewerPlatform();
+}
+
+async function startViewerPlatform() {
     canvas = document.getElementById('drum-canvas');
     ctx = canvas.getContext('2d');
 
